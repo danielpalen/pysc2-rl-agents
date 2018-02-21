@@ -73,11 +73,11 @@ class A2CRunner():
     last_obs = self.last_obs
 
     for n in range(self.n_steps):
-      actions, value_estimate = self.agent.step(last_obs)
+      actions, value_estimates = self.agent.step(last_obs)
       actions = mask_unused_argument_samples(actions)
       size = last_obs['screen'].shape[1:3]
 
-      values[n, :] = value_estimate
+      values[n, :] = value_estimates
       all_obs.append(last_obs)
       all_actions.append(actions)
 

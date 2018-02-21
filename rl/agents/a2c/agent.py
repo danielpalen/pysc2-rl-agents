@@ -148,7 +148,8 @@ class A2CAgent():
     feed_dict.update(self.get_actions_feed(actions))
     feed_dict.update({
         self.returns: returns,
-        self.advs: advs})
+        self.advs: advs
+    })
 
     ops = [self.train_op, self.loss]
 

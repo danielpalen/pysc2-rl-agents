@@ -7,6 +7,7 @@ from tensorflow.contrib.distributions import Categorical
 from pysc2.lib.actions import TYPES as ACTION_TYPES
 
 from rl.networks.fully_conv import FullyConv
+from rl.networks.conv_lstm import ConvLSTM
 from rl.util import safe_log, safe_div
 
 
@@ -17,7 +18,7 @@ class A2CAgent():
   """
   def __init__(self,
                sess,
-               network_cls=FullyConv,
+               network_cls=ConvLSTM,
                network_data_format='NCHW',
                value_loss_weight=0.5,
                entropy_weight=1e-3,

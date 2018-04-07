@@ -81,7 +81,7 @@ class FullyConv():
 
         def concat2DAlongChannel(lst):
             """Concat along the channel axis"""
-            axis = if data_format == 'NCHW': 1 else 3
+            axis = 1 if data_format == 'NCHW' else 3
             return tf.concat(lst, axis=axis)
 
         def broadcast_along_channels(flat, size2d):

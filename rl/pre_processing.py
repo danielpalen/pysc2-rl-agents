@@ -47,7 +47,7 @@ class Preprocessor():
     for the semantics of the available observations.
     """
 
-    def __init__(self, obs_spec):
+    def __init__(self):
         screen_channels  = len(features.SCREEN_FEATURES)
         minimap_channels = len(features.MINIMAP_FEATURES)
         flat_channels    = len(FLAT_FEATURES)

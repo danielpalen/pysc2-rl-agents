@@ -8,7 +8,9 @@ from functools import partial
 import tensorflow as tf
 
 from rl.agents.a2c.runner import A2CRunner
-from rl.agents.a2c.agent import A2CAgent
+from rl.agents.a2c.agent  import A2CAgent
+from rl.agents.ppo.runner import PPORunner
+from rl.agents.ppo.agent  import PPOAgent
 from rl.networks.fully_conv import FullyConv
 from rl.environment import SubprocVecEnv, make_sc2env, SingleEnv
 
@@ -18,10 +20,16 @@ from absl import flags
 FLAGS = flags.FLAGS
 FLAGS(['run.py'])
 
+agents = {
+    'a2c': [A2CAgent,A2CRunner],
+    'ppo': [A2CAgent,A2CRunner]
+}
 
 parser = argparse.ArgumentParser(description='Starcraft 2 deep RL agents')
 parser.add_argument('experiment_id', type=str,
                     help='identifier to store experiment results')
+parser.add_argument('--agent', type=str, default='a2c',
+                    help='which agent to use')
 parser.add_argument('--eval', action='store_true',
                     help='if false, episode scores are evaluated')
 parser.add_argument('--ow', action='store_true',
@@ -113,7 +121,11 @@ def main():
 
     network_data_format = 'NHWC' if args.nhwc else 'NCHW'
 
-    agent = A2CAgent(
+    # TODO: We should actually do individual setup and argument parser methods
+    # for each agent since they require different parameters etc.
+    _agent, _runner = agents[args.agent]
+    print('Running', args.agent, 'Agent')
+    agent = _agent(
         sess=sess,
         network_data_format=network_data_format,
         value_loss_weight=args.value_loss_weight,
@@ -121,7 +133,7 @@ def main():
         learning_rate=args.lr,
         max_to_keep=args.max_to_keep)
 
-    runner = A2CRunner(
+    runner = _runner(
         envs=envs,
         agent=agent,
         train=args.train,

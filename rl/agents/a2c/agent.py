@@ -36,17 +36,6 @@ class A2CAgent():
         self.max_to_keep = max_to_keep
 
     def build(self, static_shape_channels, resolution, scope=None, reuse=None):
-        # with tf.variable_scope(scope, reuse=reuse):
-        self._build(static_shape_channels, resolution)
-        variables = tf.get_collection(
-            tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-        self.saver = tf.train.Saver(variables, max_to_keep=self.max_to_keep)
-        self.init_op = tf.variables_initializer(variables)
-        train_summaries = tf.get_collection(
-            tf.GraphKeys.SUMMARIES, scope=scope)
-        self.train_summary_op = tf.summary.merge(train_summaries)
-
-    def _build(self, static_shape_channels, resolution):
         """Create tensorflow graph for A2C agent.
 
         Args:
@@ -54,48 +43,53 @@ class A2CAgent():
             {screen, minimap, flat, available_actions}.
           resolution: Integer resolution of screen and minimap.
         """
+        # with tf.variable_scope(scope, reuse=reuse):
         ch = static_shape_channels
         res = resolution
-        screen = tf.placeholder(tf.float32, [None, res, res, ch['screen']],
-                                'input_screen')
-        minimap = tf.placeholder(tf.float32, [None, res, res, ch['minimap']],
-                                 'input_minimap')
-        flat = tf.placeholder(tf.float32, [None, ch['flat']],
-                              'input_flat')
-        available_actions = tf.placeholder(tf.float32, [None, ch['available_actions']],
-                                           'input_available_actions')
-        advs = tf.placeholder(tf.float32, [None], 'advs')
-        returns = tf.placeholder(tf.float32, [None], 'returns')
-        self.screen = screen
-        self.minimap = minimap
-        self.flat = flat
-        self.advs = advs
-        self.returns = returns
-        self.available_actions = available_actions
 
-        policy, value = self.network_cls(data_format=self.network_data_format).build(
-            screen, minimap, flat)
-        self.policy = policy
-        self.value = value
+        # Create placeholder
+        screen  = tf.placeholder(tf.float32, [None, res, res, ch['screen']], name='input_screen')
+        minimap = tf.placeholder(tf.float32, [None, res, res, ch['minimap']], name='input_minimap')
+        flat    = tf.placeholder(tf.float32, [None, ch['flat']], name='input_flat')
+        available_actions = tf.placeholder(tf.float32, [None, ch['available_actions']], name='input_available_actions')
+        advs    = tf.placeholder(tf.float32, [None], name='advs')
+        returns = tf.placeholder(tf.float32, [None], name='returns')
 
-        fn_id = tf.placeholder(tf.int32, [None], 'fn_id')
+        policy, value = self.network_cls(data_format=self.network_data_format).build(screen, minimap, flat)
+
+        fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
         arg_ids = {
-            k: tf.placeholder(tf.int32, [None], 'arg_{}_id'.format(k.id))
-            for k in policy[1].keys()}
+            k: tf.placeholder(tf.int32, [None], name='arg_{}_id'.format(k.id))
+            for k in policy[1].keys()
+        }
         actions = (fn_id, arg_ids)
-        self.actions = actions
 
-        log_probs = compute_policy_log_probs(
-            available_actions, policy, actions)
-
+        log_probs = compute_policy_log_probs(available_actions, policy, actions)
         policy_loss = -tf.reduce_mean(advs * log_probs)
-        value_loss = tf.reduce_mean(tf.square(returns - value) / 2.)
-        entropy = compute_policy_entropy(available_actions, policy, actions)
-
+        value_loss  = tf.reduce_mean(tf.square(returns - value) / 2.)
+        entropy     = compute_policy_entropy(available_actions, policy, actions)
         loss = (policy_loss
                 + value_loss * self.value_loss_weight
                 - entropy * self.entropy_weight)
 
+        global_step = tf.Variable(0, trainable=False)
+        learning_rate = tf.train.exponential_decay(self.learning_rate, global_step, 10000, 0.94)
+        opt = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
+                                        decay=0.99,
+                                        epsilon=1e-5)
+
+        train_op = layers.optimize_loss(
+            loss=loss,
+            global_step=tf.train.get_global_step(),
+            optimizer=opt,
+            clip_gradients=self.max_gradient_norm,
+            learning_rate=None,
+            name="train_op"
+        )
+
+        samples = sample_actions(available_actions, policy)
+
+        # Summary writer
         tf.summary.scalar('entropy', entropy)
         tf.summary.scalar('loss', loss)
         tf.summary.scalar('loss/policy', policy_loss)
@@ -103,32 +97,36 @@ class A2CAgent():
         tf.summary.scalar('rl/value', tf.reduce_mean(value))
         tf.summary.scalar('rl/returns', tf.reduce_mean(returns))
         tf.summary.scalar('rl/advs', tf.reduce_mean(advs))
+
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+        saver   = tf.train.Saver(variables, max_to_keep=self.max_to_keep)
+        init_op = tf.variables_initializer(variables)
+        train_summaries  = tf.get_collection(tf.GraphKeys.SUMMARIES, scope=scope)
+        train_summary_op = tf.summary.merge(train_summaries)
+
+        self.screen = screen
+        self.minimap = minimap
+        self.flat = flat
+        self.advs = advs
+        self.returns = returns
+        self.available_actions = available_actions
+        self.policy = policy
+        self.value = value
+        self.actions = actions
         self.loss = loss
+        self.train_op = train_op
+        self.samples = samples
+        self.saver = saver
+        self.init_op = init_op
+        self.train_summary_op = train_summary_op
 
-        global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(
-            self.learning_rate, global_step,
-            10000, 0.94)
-
-        opt = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
-                                        decay=0.99,
-                                        epsilon=1e-5)
-
-        self.train_op = layers.optimize_loss(
-            loss=loss,
-            global_step=tf.train.get_global_step(),
-            optimizer=opt,
-            clip_gradients=self.max_gradient_norm,
-            learning_rate=None,
-            name="train_op")
-
-        self.samples = sample_actions(available_actions, policy)
 
     def get_obs_feed(self, obs):
         return {self.screen: obs['screen'],
                 self.minimap: obs['minimap'],
                 self.flat: obs['flat'],
                 self.available_actions: obs['available_actions']}
+
 
     def get_actions_feed(self, actions):
         feed_dict = {self.actions[0]: actions[0]}

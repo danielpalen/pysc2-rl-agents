@@ -18,7 +18,6 @@ class A2CAgent():
     """
 
     def __init__(self,
-                 sess,
                  network_cls=FullyConv,
                  network_data_format='NCHW',
                  value_loss_weight=0.5,
@@ -29,8 +28,7 @@ class A2CAgent():
                  res=32,
                  checkpoint_path=None):
 
-        #self.sess = sess
-
+        sess = tf.Session()
         ch = get_input_channels()
 
         # Create placeholder

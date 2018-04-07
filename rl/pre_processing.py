@@ -31,6 +31,15 @@ for name, arg_type in actions.TYPES._asdict().items():
     is_spatial_action[arg_type] = name in ['minimap', 'screen', 'screen2']
 
 
+def stack_ndarray_dicts(lst, axis=0):
+    """Concatenate ndarray values from list of dicts
+    along new axis."""
+    res = {}
+    for k in lst[0].keys():
+        res[k] = np.stack([d[k] for d in lst], axis=axis)
+    return res
+
+
 class Preprocessor():
     """Compute network inputs from pysc2 observations.
 
@@ -44,7 +53,7 @@ class Preprocessor():
         flat_channels    = len(FLAT_FEATURES)
         available_actions_channels = NUM_FUNCTIONS
 
-        def get_input_channels(self):
+        def get_input_channels():
             """Get static channel dimensions of network inputs."""
             return {
                 'screen' : screen_channels,
@@ -53,21 +62,13 @@ class Preprocessor():
                 'available_actions': available_actions_channels
             }
 
-        def preprocess_obs(self, obs_list):
-            return _stack_ndarray_dicts([_preprocess_obs(o.observation) for o in obs_list])
+        def preprocess_obs(obs_list):
+            return stack_ndarray_dicts([_preprocess_obs(o.observation) for o in obs_list])
 
-        def _stack_ndarray_dicts(lst, axis=0):
-            """Concatenate ndarray values from list of dicts
-            along new axis."""
-            res = {}
-            for k in lst[0].keys():
-                res[k] = np.stack([d[k] for d in lst], axis=axis)
-            return res
-
-        def _preprocess_spatial(self, spatial):
+        def _preprocess_spatial(spatial):
             return np.transpose(spatial, [1, 2, 0])
 
-        def _preprocess_obs(self, obs):
+        def _preprocess_obs(obs):
             """
             Compute screen, minimap and flat network inputs from raw observations.
             """

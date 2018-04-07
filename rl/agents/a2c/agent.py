@@ -8,7 +8,7 @@ from pysc2.lib.actions import TYPES as ACTION_TYPES
 
 from rl.networks.fully_conv import FullyConv
 from rl.pre_processing import Preprocessor, get_input_channels
-from rl.util import safe_log, safe_div
+from rl.util import compute_entropy, safe_log, safe_div
 
 
 class A2CAgent():
@@ -29,34 +29,32 @@ class A2CAgent():
                  res=32,
                  checkpoint_path=None):
 
-        self.sess = sess
+        #self.sess = sess
 
         ch = get_input_channels()
 
         # Create placeholder
-        screen  = tf.placeholder(tf.float32, [None, res, res, ch['screen']], name='input_screen')
-        minimap = tf.placeholder(tf.float32, [None, res, res, ch['minimap']], name='input_minimap')
-        flat    = tf.placeholder(tf.float32, [None, ch['flat']], name='input_flat')
-        available_actions = tf.placeholder(tf.float32, [None, ch['available_actions']], name='input_available_actions')
-        advs    = tf.placeholder(tf.float32, [None], name='advs')
-        returns = tf.placeholder(tf.float32, [None], name='returns')
+        SCREEN  = tf.placeholder(tf.float32, [None, res, res, ch['screen']], name='input_screen')
+        MINIMAP = tf.placeholder(tf.float32, [None, res, res, ch['minimap']], name='input_minimap')
+        FLAT    = tf.placeholder(tf.float32, [None, ch['flat']], name='input_flat')
+        AVLB_ACTIONS = tf.placeholder(tf.float32, [None, ch['available_actions']], name='input_available_actions')
+        ADVS    = tf.placeholder(tf.float32, [None], name='adv')
+        RETURNS = tf.placeholder(tf.float32, [None], name='returns')
 
-        policy, value = network_cls(data_format=network_data_format).build(screen, minimap, flat)
+        policy, value = network_cls(data_format=network_data_format).build(SCREEN, MINIMAP, FLAT)
 
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
         arg_ids = {
             k: tf.placeholder(tf.int32, [None], name='arg_{}_id'.format(k.id))
             for k in policy[1].keys()
         }
-        actions = (fn_id, arg_ids)
+        ACTIONS = (fn_id, arg_ids)
 
-        log_probs = compute_policy_log_probs(available_actions, policy, actions)
-        policy_loss = -tf.reduce_mean(advs * log_probs)
-        value_loss  = tf.reduce_mean(tf.square(returns - value) / 2.)
-        entropy     = compute_policy_entropy(available_actions, policy, actions)
-        loss = (policy_loss
-                + value_loss * value_loss_weight
-                - entropy * entropy_weight)
+        log_probs   = compute_policy_log_probs(AVLB_ACTIONS, policy, ACTIONS)
+        policy_loss = -tf.reduce_mean(ADVS * log_probs)
+        value_loss  = tf.reduce_mean(tf.square(RETURNS - value) / 2.)
+        entropy     = compute_policy_entropy(AVLB_ACTIONS, policy, ACTIONS)
+        loss = policy_loss + value_loss * value_loss_weight - entropy * entropy_weight
 
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
@@ -73,7 +71,7 @@ class A2CAgent():
             name="train_op"
         )
 
-        samples = sample_actions(available_actions, policy)
+        samples = sample_actions(AVLB_ACTIONS, policy)
 
         # Summary writer
         tf.summary.scalar('entropy', entropy)
@@ -81,8 +79,8 @@ class A2CAgent():
         tf.summary.scalar('loss/policy', policy_loss)
         tf.summary.scalar('loss/value', value_loss)
         tf.summary.scalar('rl/value', tf.reduce_mean(value))
-        tf.summary.scalar('rl/returns', tf.reduce_mean(returns))
-        tf.summary.scalar('rl/advs', tf.reduce_mean(advs))
+        tf.summary.scalar('rl/returns', tf.reduce_mean(RETURNS))
+        tf.summary.scalar('rl/advs', tf.reduce_mean(ADVS))
 
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         saver   = tf.train.Saver(variables, max_to_keep=max_to_keep)
@@ -91,111 +89,87 @@ class A2CAgent():
 
         if os.path.exists(checkpoint_path):
             ckpt = tf.train.get_checkpoint_state(checkpoint_path)
-            train_step = int(ckpt.model_checkpoint_path.split('-')[-1])
+            self.train_step = int(ckpt.model_checkpoint_path.split('-')[-1])
             saver.restore(sess, ckpt.model_checkpoint_path)
-            print("Loaded agent at train_step %d" % train_step)
+            print("Loaded agent at train_step %d" % self.train_step)
         else:
-            train_step = 0
+            self.train_step = 0
             sess.run(tf.variables_initializer(variables))
+
+
+        def train(obs, actions, returns, advs, summary=False):
+            """
+            Args:
+              obs: dict of preprocessed observation arrays, with num_batch elements
+                in the first dimensions.
+              actions: see `compute_total_log_probs`.
+              returns: array of shape [num_batch].
+              advs: array of shape [num_batch].
+              summary: Whether to return a summary.
+
+            Returns:
+              summary: (agent_step, loss, Summary) or None.
+            """
+            feed_dict = get_obs_feed(obs)
+            feed_dict.update(get_actions_feed(actions))
+            feed_dict.update({ RETURNS: returns, ADVS: advs})
+
+            ops = [train_op, loss]
+
+            if summary:
+                ops.append(train_summary_op)
+
+            res = sess.run(ops, feed_dict=feed_dict)
+            agent_step = self.train_step
+            self.train_step += 1
+
+            if summary:
+                return (agent_step, res[1], res[-1])
+
+
+        def step(obs):
+            """
+            Args:
+              obs: dict of preprocessed observation arrays, with num_batch elements
+                in the first dimensions.
+
+            Returns:
+              actions: arrays (see `compute_total_log_probs`)
+              values: array of shape [num_batch] containing value estimates.
+            """
+            return sess.run([samples, value], feed_dict=get_obs_feed(obs))
+
+
+        def get_value(obs):
+            return sess.run(value, feed_dict=get_obs_feed(obs))
+
+
+        def save(path, step=None):
+            os.makedirs(path, exist_ok=True)
+            step = step or self.train_step
+            print("Saving agent to %s, step %d" % (path, step))
+            ckpt_path = os.path.join(path, 'model.ckpt')
+            saver.save(sess, ckpt_path, global_step=step)
 
 
         def get_obs_feed(obs):
             return {
-                screen: obs['screen'],
-                minimap: obs['minimap'],
-                flat: obs['flat'],
-                available_actions: obs['available_actions']
+                SCREEN : obs['screen'],
+                MINIMAP: obs['minimap'],
+                FLAT   : obs['flat'],
+                AVLB_ACTIONS: obs['available_actions']
             }
 
 
-        def get_actions_feed(_actions):
-            feed_dict = {actions[0]: _actions[0]}
-            feed_dict.update(
-                { v: _actions[1][k] for k, v in actions[1].items()}
-            )
+        def get_actions_feed(actions):
+            feed_dict = {ACTIONS[0]: actions[0]}
+            feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items()})
             return feed_dict
 
-
-        self.get_obs_feed = get_obs_feed
-        self.get_actions_feed = get_actions_feed
-
-
-        self.train_step = train_step
-        self.screen = screen
-        self.minimap = minimap
-        self.flat = flat
-        self.advs = advs
-        self.returns = returns
-        self.available_actions = available_actions
-        self.policy = policy
-        self.value = value
-        self.actions = actions
-        self.loss = loss
-        self.train_op = train_op
-        self.samples = samples
-        self.saver = saver
-        self.train_summary_op = train_summary_op
-
-
-    def train(self, obs, actions, returns, advs, summary=False):
-        """
-        Args:
-          obs: dict of preprocessed observation arrays, with num_batch elements
-            in the first dimensions.
-          actions: see `compute_total_log_probs`.
-          returns: array of shape [num_batch].
-          advs: array of shape [num_batch].
-          summary: Whether to return a summary.
-
-        Returns:
-          summary: (agent_step, loss, Summary) or None.
-        """
-        feed_dict = self.get_obs_feed(obs)
-        feed_dict.update(self.get_actions_feed(actions))
-        feed_dict.update({
-            self.returns: returns,
-            self.advs: advs
-        })
-
-        ops = [self.train_op, self.loss]
-
-        if summary:
-            ops.append(self.train_summary_op)
-
-        res = self.sess.run(ops, feed_dict=feed_dict)
-        agent_step = self.train_step
-        self.train_step += 1
-
-        if summary:
-            return (agent_step, res[1], res[-1])
-
-
-    def step(self, obs):
-        """
-        Args:
-          obs: dict of preprocessed observation arrays, with num_batch elements
-            in the first dimensions.
-
-        Returns:
-          actions: arrays (see `compute_total_log_probs`)
-          values: array of shape [num_batch] containing value estimates.
-        """
-        feed_dict = self.get_obs_feed(obs)
-        return self.sess.run([self.samples, self.value], feed_dict=feed_dict)
-
-
-    def get_value(self, obs):
-        return self.sess.run(
-            self.value,
-            feed_dict=self.get_obs_feed(obs))
-
-
-    def save(self, path, step=None):
-        os.makedirs(path, exist_ok=True)
-        step = step or self.train_step
-        print("Saving agent to %s, step %d" % (path, step))
-        ckpt_path = os.path.join(path, 'model.ckpt')
-        self.saver.save(self.sess, ckpt_path, global_step=step)
+        self.train = train
+        self.step = step
+        self.get_value = get_value
+        self.save = save
 
 
 def mask_unavailable_actions(available_actions, fn_pi):
@@ -212,11 +186,7 @@ def compute_policy_entropy(available_actions, policy, actions):
     Returns:
       entropy: a scalar float tensor.
     """
-
-    def compute_entropy(probs):
-        return -tf.reduce_sum(safe_log(probs) * probs, axis=-1)
-
-    _, arg_ids = actions
+    _,arg_ids = actions
 
     fn_pi, arg_pis = policy
     fn_pi = mask_unavailable_actions(available_actions, fn_pi)

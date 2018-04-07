@@ -82,9 +82,9 @@ class Preprocessor():
             # TODO available_actions, control groups, cargo, multi select, build queue
 
             return {
-                'screen': screen,
+                'screen' : screen,
                 'minimap': minimap,
-                'flat': flat,
+                'flat'   : flat,
                 'available_actions': available_actions
             }
 

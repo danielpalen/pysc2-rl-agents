@@ -7,6 +7,7 @@ from tensorflow.contrib.distributions import Categorical
 from pysc2.lib.actions import TYPES as ACTION_TYPES
 
 from rl.networks.fully_conv import FullyConv
+from rl.pre_processing import Preprocessor, get_input_channels
 from rl.util import safe_log, safe_div
 
 
@@ -24,28 +25,13 @@ class A2CAgent():
                  entropy_weight=1e-3,
                  learning_rate=7e-4,
                  max_gradient_norm=1.0,
-                 max_to_keep=5):
+                 max_to_keep=5,
+                 res=32,
+                 checkpoint_path=None):
+
         self.sess = sess
-        self.network_cls = network_cls
-        self.network_data_format = network_data_format
-        self.value_loss_weight = value_loss_weight
-        self.entropy_weight = entropy_weight
-        self.learning_rate = learning_rate
-        self.max_gradient_norm = max_gradient_norm
-        self.train_step = 0
-        self.max_to_keep = max_to_keep
 
-    def build(self, static_shape_channels, resolution, scope=None, reuse=None):
-        """Create tensorflow graph for A2C agent.
-
-        Args:
-          static_shape_channels: dict with keys
-            {screen, minimap, flat, available_actions}.
-          resolution: Integer resolution of screen and minimap.
-        """
-        # with tf.variable_scope(scope, reuse=reuse):
-        ch = static_shape_channels
-        res = resolution
+        ch = get_input_channels()
 
         # Create placeholder
         screen  = tf.placeholder(tf.float32, [None, res, res, ch['screen']], name='input_screen')
@@ -55,7 +41,7 @@ class A2CAgent():
         advs    = tf.placeholder(tf.float32, [None], name='advs')
         returns = tf.placeholder(tf.float32, [None], name='returns')
 
-        policy, value = self.network_cls(data_format=self.network_data_format).build(screen, minimap, flat)
+        policy, value = network_cls(data_format=network_data_format).build(screen, minimap, flat)
 
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
         arg_ids = {
@@ -69,11 +55,11 @@ class A2CAgent():
         value_loss  = tf.reduce_mean(tf.square(returns - value) / 2.)
         entropy     = compute_policy_entropy(available_actions, policy, actions)
         loss = (policy_loss
-                + value_loss * self.value_loss_weight
-                - entropy * self.entropy_weight)
+                + value_loss * value_loss_weight
+                - entropy * entropy_weight)
 
         global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(self.learning_rate, global_step, 10000, 0.94)
+        learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
         opt = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
                                         decay=0.99,
                                         epsilon=1e-5)
@@ -82,7 +68,7 @@ class A2CAgent():
             loss=loss,
             global_step=tf.train.get_global_step(),
             optimizer=opt,
-            clip_gradients=self.max_gradient_norm,
+            clip_gradients=max_gradient_norm,
             learning_rate=None,
             name="train_op"
         )
@@ -98,12 +84,43 @@ class A2CAgent():
         tf.summary.scalar('rl/returns', tf.reduce_mean(returns))
         tf.summary.scalar('rl/advs', tf.reduce_mean(advs))
 
-        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-        saver   = tf.train.Saver(variables, max_to_keep=self.max_to_keep)
-        init_op = tf.variables_initializer(variables)
-        train_summaries  = tf.get_collection(tf.GraphKeys.SUMMARIES, scope=scope)
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+        saver   = tf.train.Saver(variables, max_to_keep=max_to_keep)
+        train_summaries  = tf.get_collection(tf.GraphKeys.SUMMARIES)
         train_summary_op = tf.summary.merge(train_summaries)
 
+        if os.path.exists(checkpoint_path):
+            ckpt = tf.train.get_checkpoint_state(checkpoint_path)
+            train_step = int(ckpt.model_checkpoint_path.split('-')[-1])
+            saver.restore(sess, ckpt.model_checkpoint_path)
+            print("Loaded agent at train_step %d" % train_step)
+        else:
+            train_step = 0
+            sess.run(tf.variables_initializer(variables))
+
+
+        def get_obs_feed(obs):
+            return {
+                screen: obs['screen'],
+                minimap: obs['minimap'],
+                flat: obs['flat'],
+                available_actions: obs['available_actions']
+            }
+
+
+        def get_actions_feed(_actions):
+            feed_dict = {actions[0]: _actions[0]}
+            feed_dict.update(
+                { v: _actions[1][k] for k, v in actions[1].items()}
+            )
+            return feed_dict
+
+
+        self.get_obs_feed = get_obs_feed
+        self.get_actions_feed = get_actions_feed
+
+
+        self.train_step = train_step
         self.screen = screen
         self.minimap = minimap
         self.flat = flat
@@ -117,22 +134,8 @@ class A2CAgent():
         self.train_op = train_op
         self.samples = samples
         self.saver = saver
-        self.init_op = init_op
         self.train_summary_op = train_summary_op
 
-
-    def get_obs_feed(self, obs):
-        return {self.screen: obs['screen'],
-                self.minimap: obs['minimap'],
-                self.flat: obs['flat'],
-                self.available_actions: obs['available_actions']}
-
-
-    def get_actions_feed(self, actions):
-        feed_dict = {self.actions[0]: actions[0]}
-        feed_dict.update({v: actions[1][k]
-                          for k, v in self.actions[1].items()})
-        return feed_dict
 
     def train(self, obs, actions, returns, advs, summary=False):
         """
@@ -166,6 +169,7 @@ class A2CAgent():
         if summary:
             return (agent_step, res[1], res[-1])
 
+
     def step(self, obs):
         """
         Args:
@@ -179,13 +183,12 @@ class A2CAgent():
         feed_dict = self.get_obs_feed(obs)
         return self.sess.run([self.samples, self.value], feed_dict=feed_dict)
 
+
     def get_value(self, obs):
         return self.sess.run(
             self.value,
             feed_dict=self.get_obs_feed(obs))
 
-    def init(self):
-        self.sess.run(self.init_op)
 
     def save(self, path, step=None):
         os.makedirs(path, exist_ok=True)
@@ -193,12 +196,6 @@ class A2CAgent():
         print("Saving agent to %s, step %d" % (path, step))
         ckpt_path = os.path.join(path, 'model.ckpt')
         self.saver.save(self.sess, ckpt_path, global_step=step)
-
-    def load(self, path):
-        ckpt = tf.train.get_checkpoint_state(path)
-        self.saver.restore(self.sess, ckpt.model_checkpoint_path)
-        self.train_step = int(ckpt.model_checkpoint_path.split('-')[-1])
-        print("Loaded agent at train_step %d" % self.train_step)
 
 
 def mask_unavailable_actions(available_actions, fn_pi):

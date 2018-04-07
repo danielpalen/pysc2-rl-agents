@@ -40,6 +40,16 @@ def stack_ndarray_dicts(lst, axis=0):
     return res
 
 
+def get_input_channels():
+    """Get static channel dimensions of network inputs."""
+    return {
+        'screen' : len(features.SCREEN_FEATURES),
+        'minimap': len(features.MINIMAP_FEATURES),
+        'flat'   : len(FLAT_FEATURES),
+        'available_actions': NUM_FUNCTIONS
+    }
+
+
 class Preprocessor():
     """Compute network inputs from pysc2 observations.
 
@@ -48,19 +58,6 @@ class Preprocessor():
     """
 
     def __init__(self):
-        screen_channels  = len(features.SCREEN_FEATURES)
-        minimap_channels = len(features.MINIMAP_FEATURES)
-        flat_channels    = len(FLAT_FEATURES)
-        available_actions_channels = NUM_FUNCTIONS
-
-        def get_input_channels():
-            """Get static channel dimensions of network inputs."""
-            return {
-                'screen' : screen_channels,
-                'minimap': minimap_channels,
-                'flat'   : flat_channels,
-                'available_actions': available_actions_channels
-            }
 
         def preprocess_obs(obs_list):
             return stack_ndarray_dicts([_preprocess_obs(o.observation) for o in obs_list])
@@ -88,5 +85,4 @@ class Preprocessor():
                 'available_actions': available_actions
             }
 
-        self.get_input_channels = get_input_channels
         self.preprocess_obs = preprocess_obs

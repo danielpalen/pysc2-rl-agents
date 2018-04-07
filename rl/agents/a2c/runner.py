@@ -32,6 +32,7 @@ class A2CRunner():
         self.n_steps = n_steps
         self.discount = discount
         self.preproc = Preprocessor()  # self.envs.observation_spec()[0])
+        self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
         self.episode_counter = 0
         self.cumulative_score = 0.0
 
@@ -85,9 +86,8 @@ class A2CRunner():
         else:
             return None
 
-    def reset(self):
-        obs_raw = self.envs.reset()
-        self.last_obs = self.preproc.preprocess_obs(obs_raw)
+    # def reset(self):
+    #     self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
 
     def get_mean_score(self):
         return self.cumulative_score / self.episode_counter

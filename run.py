@@ -125,13 +125,16 @@ def main():
     # for each agent since they require different parameters etc.
     _agent, _runner = agents[args.agent]
     print('Running', args.agent, 'Agent')
+
     agent = _agent(
         sess=sess,
         network_data_format=network_data_format,
         value_loss_weight=args.value_loss_weight,
         entropy_weight=args.entropy_weight,
         learning_rate=args.lr,
-        max_to_keep=args.max_to_keep)
+        max_to_keep=args.max_to_keep,
+        res=args.res,
+        checkpoint_path=ckpt_path)
 
     runner = _runner(
         envs=envs,
@@ -140,16 +143,6 @@ def main():
         summary_writer=summary_writer,
         discount=args.discount,
         n_steps=args.steps_per_batch)
-
-    static_shape_channels = runner.preproc.get_input_channels()
-    agent.build(static_shape_channels, resolution=args.res)
-
-    if os.path.exists(ckpt_path):
-      agent.load(ckpt_path)
-    else:
-      agent.init()
-
-    runner.reset()
 
     i = 0
     try:

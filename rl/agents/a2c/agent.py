@@ -246,7 +246,7 @@ def compute_policy_log_probs(available_actions, policy, actions):
       log_prob: a tensor of shape [num_batch]
     """
     def compute_log_probs(probs, labels):
-       # Select arbitrary element for unused arguments (log probs will be masked)
+        # Select arbitrary element for unused arguments (log probs will be masked)
         labels = tf.maximum(labels, 0)
         indices = tf.stack([tf.range(tf.shape(labels)[0]), labels], axis=1)
         # TODO tf.log should suffice

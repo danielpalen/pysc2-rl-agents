@@ -56,9 +56,11 @@ class SC2ArgumentParser():
         parser.add_argument('--vis', action='store_true',
                             help='render with pygame')
 
+
         # Neural Net Args
         parser.add_argument('--lr', type=float, default=7e-4,
                             help='initial learning rate')
+
 
         #A2C Args
         parser.add_argument('--discount', type=float, default=0.99,
@@ -69,16 +71,7 @@ class SC2ArgumentParser():
                             help='number of environments simulated in parallel')
         parser.add_argument('--value_loss_weight', type=float, default=0.5,
                             help='weight of value function loss')
-
-
-
-
-
-
-
-
-
-
+                            
 
         def parse_args():
             # TODO write args to config file and store together with summaries (https://pypi.python.org/pypi/ConfigArgParse)

@@ -23,7 +23,7 @@ class SC2ArgumentParser():
         parser.add_argument('--seed', type=int, default=123,
                             help='random seed')
         parser.add_argument('--res', type=int, default=32,
-                            elp='screen and minimap resolution')
+                            help='screen and minimap resolution')
 
 
         # Environment Execution Args
@@ -71,7 +71,7 @@ class SC2ArgumentParser():
                             help='number of environments simulated in parallel')
         parser.add_argument('--value_loss_weight', type=float, default=0.5,
                             help='weight of value function loss')
-                            
+
 
         def parse_args():
             # TODO write args to config file and store together with summaries (https://pypi.python.org/pypi/ConfigArgParse)

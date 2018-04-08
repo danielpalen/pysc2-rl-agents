@@ -8,7 +8,7 @@ from pysc2.lib.actions import TYPES as ACTION_TYPES
 
 from rl.networks.fully_conv import FullyConv
 from rl.common.pre_processing import Preprocessor, get_input_channels
-from rl.common.util import compute_entropy, safe_log, safe_div
+from rl.common.util import compute_entropy, safe_log, safe_div, mask_unavailable_actions
 
 
 class A2CAgent():
@@ -170,13 +170,6 @@ class A2CAgent():
         self.step = step
         self.get_value = get_value
         self.save = save
-
-
-def mask_unavailable_actions(available_actions, fn_pi):
-    fn_pi *= available_actions
-    fn_pi /= tf.reduce_sum(fn_pi, axis=1, keepdims=True)
-    return fn_pi
-
 
 def compute_policy_entropy(available_actions, policy, actions):
     """Compute total policy entropy.

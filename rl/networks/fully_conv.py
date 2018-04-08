@@ -5,7 +5,7 @@ from tensorflow.contrib import layers
 from pysc2.lib import actions
 from pysc2.lib import features
 
-from rl.pre_processing import is_spatial_action, NUM_FUNCTIONS, FLAT_FEATURES
+from rl.common.pre_processing import is_spatial_action, NUM_FUNCTIONS, FLAT_FEATURES
 
 
 class FullyConv():

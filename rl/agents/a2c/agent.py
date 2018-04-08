@@ -7,8 +7,8 @@ from tensorflow.contrib.distributions import Categorical
 from pysc2.lib.actions import TYPES as ACTION_TYPES
 
 from rl.networks.fully_conv import FullyConv
-from rl.pre_processing import Preprocessor, get_input_channels
-from rl.util import compute_entropy, safe_log, safe_div
+from rl.common.pre_processing import Preprocessor, get_input_channels
+from rl.common.util import compute_entropy, safe_log, safe_div
 
 
 class A2CAgent():
@@ -28,7 +28,9 @@ class A2CAgent():
                  res=32,
                  checkpoint_path=None):
 
-        sess = tf.Session()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.Session(config=config)
         ch = get_input_channels()
 
         # Create placeholder
@@ -249,6 +251,7 @@ def compute_policy_log_probs(available_actions, policy, actions):
         indices = tf.stack([tf.range(tf.shape(labels)[0]), labels], axis=1)
         # TODO tf.log should suffice
         return safe_log(tf.gather_nd(probs, indices))
+
 
     fn_id, arg_ids = actions
     fn_pi, arg_pis = policy

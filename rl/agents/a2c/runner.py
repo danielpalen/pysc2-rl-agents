@@ -4,8 +4,8 @@ import tensorflow as tf
 from pysc2.lib.actions import FunctionCall, FUNCTIONS
 from pysc2.lib.actions import TYPES as ACTION_TYPES
 
-from rl.pre_processing import Preprocessor
-from rl.pre_processing import is_spatial_action, stack_ndarray_dicts
+from rl.common.pre_processing import Preprocessor
+from rl.common.pre_processing import is_spatial_action, stack_ndarray_dicts
 
 
 class A2CRunner():

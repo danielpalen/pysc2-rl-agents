@@ -18,7 +18,7 @@ class A2CAgent():
     """
 
     def __init__(self,
-                 network_cls=FullyConv,
+                 network=FullyConv,
                  network_data_format='NCHW',
                  value_loss_weight=0.5,
                  entropy_weight=1e-3,
@@ -41,49 +41,44 @@ class A2CAgent():
         ADVS    = tf.placeholder(tf.float32, [None], name='adv')
         RETURNS = tf.placeholder(tf.float32, [None], name='returns')
 
-        policy, value = network_cls(data_format=network_data_format).build(SCREEN, MINIMAP, FLAT)
+        step_model  = network(SCREEN, MINIMAP, FLAT, reuse=False, data_format=network_data_format)
+        train_model = network(SCREEN, MINIMAP, FLAT, reuse=True,  data_format=network_data_format)
+
+        #policy, value = model.policy, model.value
 
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
         arg_ids = {
             k: tf.placeholder(tf.int32, [None], name='arg_{}_id'.format(k.id))
-            for k in policy[1].keys()
+            for k in train_model.policy[1].keys()
         }
         ACTIONS = (fn_id, arg_ids)
 
-        log_probs   = compute_policy_log_probs(AVLB_ACTIONS, policy, ACTIONS)
+        log_probs   = compute_policy_log_probs(AVLB_ACTIONS, train_model.policy, ACTIONS)
         policy_loss = -tf.reduce_mean(ADVS * log_probs)
-        value_loss  = tf.reduce_mean(tf.square(RETURNS - value) / 2.)
-        entropy     = compute_policy_entropy(AVLB_ACTIONS, policy, ACTIONS)
+        value_loss  = tf.reduce_mean(tf.square(RETURNS - train_model.value) / 2.)
+        entropy     = compute_policy_entropy(AVLB_ACTIONS, train_model.policy, ACTIONS)
         loss = policy_loss + value_loss * value_loss_weight - entropy * entropy_weight
 
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
-        opt = tf.train.RMSPropOptimizer(learning_rate=learning_rate,
-                                        decay=0.99,
-                                        epsilon=1e-5)
+        opt = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99, epsilon=1e-5)
 
-        train_op = layers.optimize_loss(
-            loss=loss,
-            global_step=tf.train.get_global_step(),
-            optimizer=opt,
-            clip_gradients=max_gradient_norm,
-            learning_rate=None,
-            name="train_op"
-        )
+        train_op = layers.optimize_loss(loss=loss, global_step=tf.train.get_global_step(),
+            optimizer=opt, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")
 
-        samples = sample_actions(AVLB_ACTIONS, policy)
+        action_samples = sample_actions(AVLB_ACTIONS, step_model.policy)
 
         # Summary writer
         tf.summary.scalar('entropy', entropy)
         tf.summary.scalar('loss', loss)
         tf.summary.scalar('loss/policy', policy_loss)
         tf.summary.scalar('loss/value', value_loss)
-        tf.summary.scalar('rl/value', tf.reduce_mean(value))
+        tf.summary.scalar('rl/value', tf.reduce_mean(train_model.value))
         tf.summary.scalar('rl/returns', tf.reduce_mean(RETURNS))
         tf.summary.scalar('rl/advs', tf.reduce_mean(ADVS))
 
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-        saver   = tf.train.Saver(variables, max_to_keep=max_to_keep)
+        saver = tf.train.Saver(variables, max_to_keep=max_to_keep)
         train_summaries  = tf.get_collection(tf.GraphKeys.SUMMARIES)
         train_summary_op = tf.summary.merge(train_summaries)
 
@@ -137,11 +132,11 @@ class A2CAgent():
               actions: arrays (see `compute_total_log_probs`)
               values: array of shape [num_batch] containing value estimates.
             """
-            return sess.run([samples, value], feed_dict=get_obs_feed(obs))
+            return sess.run([action_samples, step_model.value], feed_dict=get_obs_feed(obs))
 
 
         def get_value(obs):
-            return sess.run(value, feed_dict=get_obs_feed(obs))
+            return sess.run(step_model.value, feed_dict=get_obs_feed(obs))
 
 
         def save(path, step=None):

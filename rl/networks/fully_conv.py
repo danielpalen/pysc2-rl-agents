@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import layers
+from tensorflow.contrib.layers import fully_connected, conv2d # TODO: use these
 
 from pysc2.lib import actions
 from pysc2.lib import features
@@ -15,7 +16,7 @@ class FullyConv():
     computations. Inputs and outputs are always in NHWC.
     """
 
-    def __init__(self, data_format='NCHW'):
+    def __init__(self, screen_input, minimap_input, flat_input, reuse=False, data_format='NCHW'):
 
         def embed_obs(x, spec, embed_fn):
             feats = tf.split(x, len(spec), -1)
@@ -101,20 +102,17 @@ class FullyConv():
                 return tf.transpose(map2d, [0, 3, 1, 2])
             return map2d
 
-        def build(screen_input, minimap_input, flat_input):
+
+        with tf.variable_scope('model', reuse=reuse):
             size2d = tf.unstack(tf.shape(screen_input)[1:3])
-            screen_emb = embed_obs(screen_input, features.SCREEN_FEATURES,
-                                        embed_spatial)
-            minimap_emb = embed_obs(minimap_input, features.MINIMAP_FEATURES,
-                                         embed_spatial)
-            flat_emb = embed_obs(flat_input, FLAT_FEATURES, embed_flat)
+            screen_emb  = embed_obs(screen_input,  features.SCREEN_FEATURES,  embed_spatial)
+            minimap_emb = embed_obs(minimap_input, features.MINIMAP_FEATURES, embed_spatial)
+            flat_emb    = embed_obs(flat_input, FLAT_FEATURES, embed_flat)
 
-            screen_out = input_conv(from_nhwc(screen_emb), 'screen')
-            minimap_out = input_conv(from_nhwc(minimap_emb), 'minimap')
-
+            screen_out    = input_conv(from_nhwc(screen_emb), 'screen')
+            minimap_out   = input_conv(from_nhwc(minimap_emb), 'minimap')
             broadcast_out = broadcast_along_channels(flat_emb, size2d)
-
-            state_out = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
+            state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
             flat_out = layers.flatten(to_nhwc(state_out))
             fc = layers.fully_connected(flat_out, 256, activation_fn=tf.nn.relu)
@@ -134,6 +132,11 @@ class FullyConv():
 
             policy = (fn_out, args_out)
 
-            return policy, value
+        #def step():
+        #    pass
 
-        self.build = build
+        # def value():
+        #     pass
+
+        self.policy = policy
+        self.value  = value

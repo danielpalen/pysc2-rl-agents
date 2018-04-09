@@ -7,6 +7,7 @@ from tensorflow.contrib.distributions import Categorical
 from pysc2.lib.actions import TYPES as ACTION_TYPES
 
 from rl.networks.fully_conv import FullyConv
+#from rl.networks.conv_lstm import ConvLSTM
 from rl.common.pre_processing import Preprocessor, get_input_channels
 from rl.common.util import compute_entropy, safe_log, safe_div, mask_unavailable_actions
 
@@ -28,6 +29,7 @@ class A2CAgent():
                  res=32,
                  checkpoint_path=None):
 
+        tf.reset_default_graph()
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)

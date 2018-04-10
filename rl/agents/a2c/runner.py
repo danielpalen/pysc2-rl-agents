@@ -51,7 +51,7 @@ class A2CRunner():
         mb_states = self.states # save the initial states at the beginning of each mb.
 
         for n in range(self.n_steps):
-            actions, values[n,:], states = self.agent.step(last_obs, states)
+            actions, values[n,:], states = self.agent.step(last_obs, self.states)
             actions = mask_unused_argument_samples(actions)
 
             all_obs.append(last_obs)

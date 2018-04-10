@@ -22,7 +22,9 @@ class A2CAgent():
                  max_to_keep=5, res=32, nsteps=16, checkpoint_path=None):
 
         tf.reset_default_graph()
-        sess = tf.Session(config=tf.ConfigProto(allow_growth=True))
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.Session(config=config)
         ch = get_input_channels()
 
         ob_space = {
@@ -106,8 +108,8 @@ class A2CAgent():
                 ACTIONS[0]: actions[0]
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
-            if state is not None: # For recurrent polies
-                feed_dict.update({train_model.STATES = states})
+            if states is not None: # For recurrent polies
+                feed_dict.update({train_model.STATES : states})
 
             ops = [train_op, loss, train_summary_op] if summary else [train_op, loss]
             res = sess.run(ops, feed_dict=feed_dict)

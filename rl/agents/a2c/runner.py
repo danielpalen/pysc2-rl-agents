@@ -53,9 +53,8 @@ class A2CRunner():
         dones    = np.zeros(shapes, dtype=np.float32)
         all_obs, all_actions = [], []
 
-        # Collect trajectory for each agent
         for n in range(self.n_steps):
-            actions, values[n,:] = self.agent.step(last_obs)
+            actions, values[n,:], _ = self.agent.step(last_obs, None) # TODO: use last state here
             actions = mask_unused_argument_samples(actions)
 
             all_obs.append(last_obs)
@@ -70,10 +69,9 @@ class A2CRunner():
                 if t.last():
                     self.cumulative_score += self._summarize_episode(t)
 
-        next_values = self.agent.get_value(last_obs)
+        next_values = self.agent.get_value(last_obs, None) # TODO use last state
 
-        returns, advs = compute_returns_advantages(
-            rewards, dones, values, next_values, self.discount)
+        returns, advs = compute_returns_advs(rewards, dones, values, next_values, self.discount)
 
         actions = stack_and_flatten_actions(all_actions)
         obs     = flatten_first_dims_dict(stack_ndarray_dicts(all_obs))
@@ -105,7 +103,7 @@ class A2CRunner():
         return score
 
 
-def compute_returns_advantages(rewards, dones, values, next_values, discount):
+def compute_returns_advs(rewards, dones, values, next_values, discount):
     """Compute returns and advantages from received rewards and value estimates.
 
     Args:

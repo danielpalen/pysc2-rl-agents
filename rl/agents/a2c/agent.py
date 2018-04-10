@@ -7,15 +7,14 @@ from tensorflow.contrib.distributions import Categorical
 from pysc2.lib.actions import TYPES as ACTION_TYPES
 
 from rl.networks.fully_conv import FullyConv
-#from rl.networks.conv_lstm import ConvLSTM
+from rl.networks.conv_lstm import ConvLSTM
 from rl.common.pre_processing import Preprocessor, get_input_channels
 from rl.common.util import compute_entropy, safe_log, safe_div, mask_unavailable_actions
 
 
 class A2CAgent():
-    """A2C agent.
-
-    Run build(...) first, then init() or load(...).
+    """
+    A2C agent
     """
 
     def __init__(self,
@@ -27,6 +26,7 @@ class A2CAgent():
                  max_gradient_norm=1.0,
                  max_to_keep=5,
                  res=32,
+                 nsteps=16,
                  checkpoint_path=None):
 
         tf.reset_default_graph()
@@ -35,18 +35,16 @@ class A2CAgent():
         sess = tf.Session(config=config)
         ch = get_input_channels()
 
-        # Create placeholder
-        SCREEN  = tf.placeholder(tf.float32, [None, res, res, ch['screen']], name='input_screen')
-        MINIMAP = tf.placeholder(tf.float32, [None, res, res, ch['minimap']], name='input_minimap')
-        FLAT    = tf.placeholder(tf.float32, [None, ch['flat']], name='input_flat')
-        AVLB_ACTIONS = tf.placeholder(tf.float32, [None, ch['available_actions']], name='input_available_actions')
-        ADVS    = tf.placeholder(tf.float32, [None], name='adv')
-        RETURNS = tf.placeholder(tf.float32, [None], name='returns')
-
-        step_model  = network(SCREEN, MINIMAP, FLAT, reuse=False, data_format=network_data_format)
-        train_model = network(SCREEN, MINIMAP, FLAT, reuse=True,  data_format=network_data_format)
-
-        #policy, value = model.policy, model.value
+        ADVS         = tf.placeholder(tf.float32, [None], name='adv')
+        RETURNS      = tf.placeholder(tf.float32, [None], name='returns')
+        ob_space = {
+            'screen'  : [None, res, res, ch['screen']],
+            'minimap' : [None, res, res, ch['minimap']],
+            'flat'    : [None, ch['flat']],
+            'available_actions' : [None, ch['available_actions']]
+        }
+        step_model  = network(sess, ob_space=ob_space, nbatch=None, nsteps=nsteps, reuse=None, data_format=network_data_format)
+        train_model = network(sess, ob_space=ob_space, nbatch=None, nsteps=nsteps, reuse=True, data_format=network_data_format)
 
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
         arg_ids = {
@@ -55,22 +53,18 @@ class A2CAgent():
         }
         ACTIONS = (fn_id, arg_ids)
 
-        log_probs   = compute_policy_log_probs(AVLB_ACTIONS, train_model.policy, ACTIONS)
+        log_probs   = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
         policy_loss = -tf.reduce_mean(ADVS * log_probs)
         value_loss  = tf.reduce_mean(tf.square(RETURNS - train_model.value) / 2.)
-        entropy     = compute_policy_entropy(AVLB_ACTIONS, train_model.policy, ACTIONS)
+        entropy     = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
         loss = policy_loss + value_loss * value_loss_weight - entropy * entropy_weight
 
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
-        opt = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99, epsilon=1e-5)
-
+        optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99, epsilon=1e-5)
         train_op = layers.optimize_loss(loss=loss, global_step=tf.train.get_global_step(),
-            optimizer=opt, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")
+            optimizer=optimizer, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")
 
-        action_samples = sample_actions(AVLB_ACTIONS, step_model.policy)
-
-        # Summary writer
         tf.summary.scalar('entropy', entropy)
         tf.summary.scalar('loss', loss)
         tf.summary.scalar('loss/policy', policy_loss)
@@ -107,38 +101,28 @@ class A2CAgent():
             Returns:
               summary: (agent_step, loss, Summary) or None.
             """
-            feed_dict = get_obs_feed(obs)
-            feed_dict.update(get_actions_feed(actions))
-            feed_dict.update({ RETURNS: returns, ADVS: advs})
+            feed_dict = {
+                train_model.SCREEN : obs['screen'],
+                train_model.MINIMAP: obs['minimap'],
+                train_model.FLAT   : obs['flat'],
+                train_model.AV_ACTS: obs['available_actions'],
+                RETURNS   : returns,
+                ADVS      : advs,
+                ACTIONS[0]: actions[0]
+            }
+            feed_dict.update({
+                v: actions[1][k] for k, v in ACTIONS[1].items()
+            })
 
-            ops = [train_op, loss]
-
-            if summary:
-                ops.append(train_summary_op)
-
+            ops = [train_op, loss, train_summary_op] if summary else [train_op, loss]
             res = sess.run(ops, feed_dict=feed_dict)
+
             agent_step = self.train_step
             self.train_step += 1
 
             if summary:
-                return (agent_step, res[1], res[-1])
-
-
-        def step(obs):
-            """
-            Args:
-              obs: dict of preprocessed observation arrays, with num_batch elements
-                in the first dimensions.
-
-            Returns:
-              actions: arrays (see `compute_total_log_probs`)
-              values: array of shape [num_batch] containing value estimates.
-            """
-            return sess.run([action_samples, step_model.value], feed_dict=get_obs_feed(obs))
-
-
-        def get_value(obs):
-            return sess.run(step_model.value, feed_dict=get_obs_feed(obs))
+                _loss, _summary = res[1],res[2]
+                return agent_step, _loss, _summary
 
 
         def save(path, step=None):
@@ -149,24 +133,11 @@ class A2CAgent():
             saver.save(sess, ckpt_path, global_step=step)
 
 
-        def get_obs_feed(obs):
-            return {
-                SCREEN : obs['screen'],
-                MINIMAP: obs['minimap'],
-                FLAT   : obs['flat'],
-                AVLB_ACTIONS: obs['available_actions']
-            }
-
-
-        def get_actions_feed(actions):
-            feed_dict = {ACTIONS[0]: actions[0]}
-            feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items()})
-            return feed_dict
-
         self.train = train
-        self.step = step
-        self.get_value = get_value
+        self.step = step_model.step
+        self.get_value = step_model.get_value
         self.save = save
+
 
 def compute_policy_entropy(available_actions, policy, actions):
     """Compute total policy entropy.
@@ -196,24 +167,6 @@ def compute_policy_entropy(available_actions, policy, actions):
         tf.summary.scalar('entropy/arg/%s' % arg_type.name, arg_entropy)
 
     return entropy
-
-
-def sample_actions(available_actions, policy):
-    """Sample function ids and arguments from a predicted policy."""
-
-    def sample(probs):
-        dist = Categorical(probs=probs)
-        return dist.sample()
-
-    fn_pi, arg_pis = policy
-    fn_pi = mask_unavailable_actions(available_actions, fn_pi)
-    fn_samples = sample(fn_pi)
-
-    arg_samples = dict()
-    for arg_type, arg_pi in arg_pis.items():
-        arg_samples[arg_type] = sample(arg_pi)
-
-    return fn_samples, arg_samples
 
 
 def compute_policy_log_probs(available_actions, policy, actions):

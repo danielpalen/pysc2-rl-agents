@@ -2,11 +2,13 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.contrib.layers import fully_connected, conv2d # TODO: use these
+from tensorflow.contrib.distributions import Categorical
 
 from pysc2.lib import actions
 from pysc2.lib import features
 
 from rl.common.pre_processing import is_spatial_action, NUM_FUNCTIONS, FLAT_FEATURES
+from rl.common.util import mask_unavailable_actions
 
 
 class FullyConv():
@@ -16,7 +18,7 @@ class FullyConv():
     computations. Inputs and outputs are always in NHWC.
     """
 
-    def __init__(self, screen_input, minimap_input, flat_input, reuse=False, data_format='NCHW'):
+    def __init__(self, sess, ob_space, nbatch, nsteps, reuse=False, data_format='NCHW'):
 
         def embed_obs(x, spec, embed_fn, name):
             feats = tf.split(x, len(spec), -1)
@@ -105,15 +107,23 @@ class FullyConv():
             return map2d
 
 
+        SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
+        MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
+        FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
+        AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
+
+
         with tf.variable_scope('model', reuse=reuse):
-            size2d = tf.unstack(tf.shape(screen_input)[1:3])
-            screen_emb  = embed_obs(screen_input,  features.SCREEN_FEATURES,  embed_spatial, 'screen')
-            minimap_emb = embed_obs(minimap_input, features.MINIMAP_FEATURES, embed_spatial, 'minimap')
-            flat_emb    = embed_obs(flat_input, FLAT_FEATURES, embed_flat, 'flat')
+
+            screen_emb  = embed_obs(SCREEN,  features.SCREEN_FEATURES,  embed_spatial, 'screen')
+            minimap_emb = embed_obs(MINIMAP, features.MINIMAP_FEATURES, embed_spatial, 'minimap')
+            flat_emb    = embed_obs(FLAT, FLAT_FEATURES, embed_flat, 'flat')
 
             screen_out    = input_conv(from_nhwc(screen_emb), 'screen')
             minimap_out   = input_conv(from_nhwc(minimap_emb), 'minimap')
-            broadcast_out = broadcast_along_channels(flat_emb, size2d)
+
+            #size2d = tf.unstack(tf.shape(SCREEN)[1:3])
+            broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
             state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
             flat_out = layers.flatten(to_nhwc(state_out), scope="flat_out")
@@ -127,23 +137,59 @@ class FullyConv():
             args_out = dict()
             for arg_type in actions.TYPES:
                 if is_spatial_action[arg_type]:
-                    print(arg_type)
                     arg_out = spatial_output(state_out, name=arg_type.name)
                 else:
-                    print(arg_type)
                     arg_out = non_spatial_output(fc, arg_type.sizes[0], name=arg_type.name)
                 args_out[arg_type] = arg_out
 
             policy = (fn_out, args_out)
 
-            for n in tf.get_default_graph().as_graph_def().node:
-                print('###' if reuse else '---', n.name)
 
-        #def step():
-        #    pass
+        def sample_actions(available_actions, policy):
+            """Sample function ids and arguments from a predicted policy."""
 
-        # def value():
-        #     pass
+            def sample(probs):
+                dist = Categorical(probs=probs)
+                return dist.sample()
 
+            fn_pi, arg_pis = policy
+            fn_pi = mask_unavailable_actions(available_actions, fn_pi)
+            fn_samples = sample(fn_pi)
+
+            arg_samples = dict()
+            for arg_type, arg_pi in arg_pis.items():
+                arg_samples[arg_type] = sample(arg_pi)
+
+            return fn_samples, arg_samples
+
+        action = sample_actions(AV_ACTS, policy)
+
+        def step(obs, state, mask=None):
+            feed_dict = {
+                SCREEN : obs['screen'],
+                MINIMAP: obs['minimap'],
+                FLAT   : obs['flat'],
+                AV_ACTS: obs['available_actions']
+            }
+            a, v = sess.run([action, value], feed_dict=feed_dict)
+            return a, v, self.initial_state
+
+
+        def get_value(obs, state, mask=None):
+            feed_dict = {
+                SCREEN : obs['screen'],
+                MINIMAP: obs['minimap'],
+                FLAT   : obs['flat']
+            }
+            return sess.run([value], feed_dict=feed_dict)
+
+
+        self.SCREEN  = SCREEN
+        self.MINIMAP = MINIMAP
+        self.FLAT    = FLAT
+        self.AV_ACTS = AV_ACTS
         self.policy = policy
         self.value  = value
+        self.step = step
+        self.get_value = get_value
+        self.initial_state = None

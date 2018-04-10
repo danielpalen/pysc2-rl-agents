@@ -17,48 +17,43 @@ class A2CAgent():
     A2C agent
     """
 
-    def __init__(self,
-                 network=FullyConv,
-                 network_data_format='NCHW',
-                 value_loss_weight=0.5,
-                 entropy_weight=1e-3,
-                 learning_rate=7e-4,
-                 max_gradient_norm=1.0,
-                 max_to_keep=5,
-                 res=32,
-                 nsteps=16,
-                 checkpoint_path=None):
+    def __init__(self, network=FullyConv, network_data_format='NCHW', value_loss_weight=0.5,
+                 entropy_weight=1e-3, learning_rate=7e-4, max_gradient_norm=1.0,
+                 max_to_keep=5, res=32, nsteps=16, checkpoint_path=None):
 
         tf.reset_default_graph()
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        sess = tf.Session(config=config)
+        sess = tf.Session(config=tf.ConfigProto(allow_growth=True))
         ch = get_input_channels()
 
-        ADVS         = tf.placeholder(tf.float32, [None], name='adv')
-        RETURNS      = tf.placeholder(tf.float32, [None], name='returns')
         ob_space = {
             'screen'  : [None, res, res, ch['screen']],
             'minimap' : [None, res, res, ch['minimap']],
             'flat'    : [None, ch['flat']],
             'available_actions' : [None, ch['available_actions']]
         }
+
+        # TODO: set nbatch correct
         step_model  = network(sess, ob_space=ob_space, nbatch=None, nsteps=nsteps, reuse=None, data_format=network_data_format)
         train_model = network(sess, ob_space=ob_space, nbatch=None, nsteps=nsteps, reuse=True, data_format=network_data_format)
 
+        # Define placeholders
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
         arg_ids = {
             k: tf.placeholder(tf.int32, [None], name='arg_{}_id'.format(k.id))
             for k in train_model.policy[1].keys()
         }
         ACTIONS = (fn_id, arg_ids)
+        ADVS    = tf.placeholder(tf.float32, [None], name='adv')
+        RETURNS = tf.placeholder(tf.float32, [None], name='returns')
 
+        # Define Loss
         log_probs   = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
         policy_loss = -tf.reduce_mean(ADVS * log_probs)
         value_loss  = tf.reduce_mean(tf.square(RETURNS - train_model.value) / 2.)
         entropy     = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
         loss = policy_loss + value_loss * value_loss_weight - entropy * entropy_weight
 
+        # Define Optimizer
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99, epsilon=1e-5)
@@ -72,12 +67,12 @@ class A2CAgent():
         tf.summary.scalar('rl/value', tf.reduce_mean(train_model.value))
         tf.summary.scalar('rl/returns', tf.reduce_mean(RETURNS))
         tf.summary.scalar('rl/advs', tf.reduce_mean(ADVS))
-
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         saver = tf.train.Saver(variables, max_to_keep=max_to_keep)
         train_summaries  = tf.get_collection(tf.GraphKeys.SUMMARIES)
         train_summary_op = tf.summary.merge(train_summaries)
 
+        # Load checkpoints if exist
         if os.path.exists(checkpoint_path):
             ckpt = tf.train.get_checkpoint_state(checkpoint_path)
             self.train_step = int(ckpt.model_checkpoint_path.split('-')[-1])
@@ -88,7 +83,7 @@ class A2CAgent():
             sess.run(tf.variables_initializer(variables))
 
 
-        def train(obs, actions, returns, advs, summary=False):
+        def train(obs, states, actions, returns, advs, summary=False):
             """
             Args:
               obs: dict of preprocessed observation arrays, with num_batch elements
@@ -110,9 +105,9 @@ class A2CAgent():
                 ADVS      : advs,
                 ACTIONS[0]: actions[0]
             }
-            feed_dict.update({
-                v: actions[1][k] for k, v in ACTIONS[1].items()
-            })
+            feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
+            if state is not None: # For recurrent polies
+                feed_dict.update({train_model.STATES = states})
 
             ops = [train_op, loss, train_summary_op] if summary else [train_op, loss]
             res = sess.run(ops, feed_dict=feed_dict)
@@ -137,6 +132,7 @@ class A2CAgent():
         self.step = step_model.step
         self.get_value = step_model.get_value
         self.save = save
+        self.initial_state = step_model.initial_state
 
 
 def compute_policy_entropy(available_actions, policy, actions):

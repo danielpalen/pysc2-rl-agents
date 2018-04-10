@@ -10,13 +10,8 @@ from rl.common.util import mask_unused_argument_samples, flatten_first_dims, fla
 
 
 class A2CRunner():
-    def __init__(self,
-                 agent,
-                 envs,
-                 summary_writer=None,
-                 train=True,
-                 n_steps=8,
-                 discount=0.99):
+    def __init__(self, agent, envs, summary_writer=None,
+                 train=True, n_steps=8, discount=0.99):
         """
         Args:
           agent: A2CAgent instance.
@@ -34,6 +29,7 @@ class A2CRunner():
         self.discount = discount
         self.preproc = Preprocessor()  # self.envs.observation_spec()[0])
         self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
+        self.states = agent.initial_state
         self.episode_counter = 0
         self.cumulative_score = 0.0
 
@@ -52,9 +48,10 @@ class A2CRunner():
         rewards  = np.zeros(shapes, dtype=np.float32)
         dones    = np.zeros(shapes, dtype=np.float32)
         all_obs, all_actions = [], []
+        mb_states = self.states # save the initial states at the beginning of each mb.
 
         for n in range(self.n_steps):
-            actions, values[n,:], _ = self.agent.step(last_obs, None) # TODO: use last state here
+            actions, values[n,:], states = self.agent.step(last_obs, states)
             actions = mask_unused_argument_samples(actions)
 
             all_obs.append(last_obs)
@@ -64,14 +61,15 @@ class A2CRunner():
             obs_raw  = self.envs.step(pysc2_actions)
             last_obs = self.preproc.preprocess_obs(obs_raw)
             rewards[n,:], dones[n,:] = zip(*[(t.reward,t.last()) for t in obs_raw])
+            self.states = states
 
             for t in obs_raw:
                 if t.last():
                     self.cumulative_score += self._summarize_episode(t)
 
-        next_values = self.agent.get_value(last_obs, None) # TODO use last state
+        next_values = self.agent.get_value(last_obs, states)
 
-        returns, advs = compute_returns_advs(rewards, dones, values, next_values, self.discount)
+        returns, advs = compute_returns_and_advs(rewards, dones, values, next_values, self.discount)
 
         actions = stack_and_flatten_actions(all_actions)
         obs     = flatten_first_dims_dict(stack_ndarray_dicts(all_obs))
@@ -81,15 +79,14 @@ class A2CRunner():
         self.last_obs = last_obs
 
         if self.train:
-            return self.agent.train(obs, actions, returns, advs,summary=train_summary)
+            return self.agent.train(obs, mb_states, actions, returns, advs, summary=train_summary)
         else:
             return None
 
-    # def reset(self):
-    #     self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
 
     def get_mean_score(self):
         return self.cumulative_score / self.episode_counter
+
 
     def _summarize_episode(self, timestep):
         score = timestep.observation["score_cumulative"][0]
@@ -103,7 +100,7 @@ class A2CRunner():
         return score
 
 
-def compute_returns_advs(rewards, dones, values, next_values, discount):
+def compute_returns_and_advs(rewards, dones, values, next_values, discount):
     """Compute returns and advantages from received rewards and value estimates.
 
     Args:

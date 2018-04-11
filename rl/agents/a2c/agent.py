@@ -59,7 +59,7 @@ class A2CAgent():
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99, epsilon=1e-5)
-        train_op = layers.optimize_loss(loss=loss, global_step=tf.train.get_global_step(),
+        train_op = layers.optimize_loss(loss=loss, global_step=global_step,
             optimizer=optimizer, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")
 
         tf.summary.scalar('entropy', entropy)
@@ -79,7 +79,7 @@ class A2CAgent():
             ckpt = tf.train.get_checkpoint_state(checkpoint_path)
             self.train_step = int(ckpt.model_checkpoint_path.split('-')[-1])
             saver.restore(sess, ckpt.model_checkpoint_path)
-            print("Loaded agent at train_step %d" % self.train_step)
+            print("Loaded agent at episode {} (step {})".format(self.train_step//nsteps, self.train_step))
         else:
             self.train_step = 0
             sess.run(tf.variables_initializer(variables))
@@ -111,23 +111,32 @@ class A2CAgent():
             if states is not None: # For recurrent polies
                 feed_dict.update({train_model.STATES : states})
 
-            ops = [train_op, loss, train_summary_op] if summary else [train_op, loss]
-            res = sess.run(ops, feed_dict=feed_dict)
+            #ops = [train_op, loss, train_summary_op] if summary else [train_op, loss]
+            #res = sess.run(ops, feed_dict=feed_dict)
 
             agent_step = self.train_step
             self.train_step += 1
 
             if summary:
-                _loss, _summary = res[1],res[2]
-                return agent_step, _loss, _summary
+                #_loss, _summary = res[1],res[2]
+                #return agent_step, _loss, _summary
+                _,_step,_loss,_summary = sess.run([train_op, global_step, loss, train_summary_op],
+                                                feed_dict=feed_dict)
+                return _step, _loss, _summary
+            else:
+                sess.run([train_op, loss], feed_dict=feed_dict)
 
 
         def save(path, step=None):
             os.makedirs(path, exist_ok=True)
-            step = step or self.train_step
-            print("Saving agent to %s, step %d" % (path, step))
+            #step = step or self.train_step
+            print("Saving agent to %s, step %d" % (path, sess.run(global_step)))
             ckpt_path = os.path.join(path, 'model.ckpt')
-            saver.save(sess, ckpt_path, global_step=step)
+            saver.save(sess, ckpt_path, global_step=global_step)
+
+
+        def get_global_step():
+            return sess.run(global_step)
 
 
         self.train = train
@@ -135,6 +144,7 @@ class A2CAgent():
         self.get_value = step_model.get_value
         self.save = save
         self.initial_state = step_model.initial_state
+        self.get_global_step = get_global_step
 
 
 def compute_policy_entropy(available_actions, policy, actions):

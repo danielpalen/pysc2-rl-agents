@@ -8,9 +8,9 @@ from functools import partial
 import tensorflow as tf
 
 from rl.agents.a2c.runner import A2CRunner
-from rl.agents.a2c.agent  import A2CAgent
+from rl.agents.a2c.agent import A2CAgent
 from rl.agents.ppo.runner import PPORunner
-from rl.agents.ppo.agent  import PPOAgent
+from rl.agents.ppo.agent import PPOAgent
 from rl.networks.fully_conv import FullyConv
 from rl.environment import SubprocVecEnv, make_sc2env, SingleEnv
 from rl.common.cmd_util import SC2ArgumentParser
@@ -21,8 +21,8 @@ FLAGS = flags.FLAGS
 FLAGS(['run.py'])
 
 agents = {
-    'a2c': [A2CAgent,A2CRunner],
-    'ppo': [PPOAgent,PPORunner]
+    'a2c': [A2CAgent, A2CRunner],
+    'ppo': [PPOAgent, PPORunner]
 }
 
 args = SC2ArgumentParser().parse_args()
@@ -34,8 +34,8 @@ summary_path = os.path.join(args.summary_dir, args.experiment_id, summary_type)
 
 def main():
     if args.train and args.ow:
-      shutil.rmtree(ckpt_path, ignore_errors=True)
-      shutil.rmtree(summary_path, ignore_errors=True)
+        shutil.rmtree(ckpt_path, ignore_errors=True)
+        shutil.rmtree(summary_path, ignore_errors=True)
 
     size_px = (args.res, args.res)
     env_args = dict(
@@ -51,7 +51,7 @@ def main():
     env_fns = [partial(make_sc2env, **vis_env_args)] * num_vis
     num_no_vis = args.envs - num_vis
     if num_no_vis > 0:
-      env_fns.extend([partial(make_sc2env, **env_args)] * num_no_vis)
+        env_fns.extend([partial(make_sc2env, **env_args)] * num_no_vis)
 
     envs = SubprocVecEnv(env_fns)
 
@@ -85,23 +85,23 @@ def main():
 
     i = 0
     try:
-      while True:
-        write_summary = args.train and i % args.summary_iters == 0
+        while True:
+            write_summary = args.train and i % args.summary_iters == 0
 
-        if i > 0 and i % args.save_iters == 0:
-          _save_if_training(agent, summary_writer)
+            if i > 0 and i % args.save_iters == 0:
+                _save_if_training(agent, summary_writer)
 
-        result = runner.run_batch(train_summary=write_summary)
+            result = runner.run_batch(train_summary=write_summary)
 
-        if write_summary:
-          agent_step, loss, summary = result
-          summary_writer.add_summary(summary, global_step=agent_step)
-          print('iter %d: loss = %f' % (agent_step, loss))
+            if write_summary:
+                agent_step, loss, summary = result
+                summary_writer.add_summary(summary, global_step=agent_step)
+                print('iter %d: loss = %f' % (agent_step, loss))
 
-        i += 1
+            i += 1
 
-        if 0 <= args.iters <= i:
-          break
+            if 0 <= args.iters <= i:
+                break
 
     except KeyboardInterrupt:
         pass
@@ -115,10 +115,10 @@ def main():
 
 
 def _save_if_training(agent, summary_writer):
-  if args.train:
-    agent.save(ckpt_path)
-    summary_writer.flush()
-    sys.stdout.flush()
+    if args.train:
+        agent.save(ckpt_path)
+        summary_writer.flush()
+        sys.stdout.flush()
 
 
 if __name__ == "__main__":

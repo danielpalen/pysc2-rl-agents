@@ -19,14 +19,15 @@ class A2CAgent():
 
     def __init__(self, network=FullyConv, network_data_format='NCHW', value_loss_weight=0.5,
                  entropy_weight=1e-3, learning_rate=7e-4, max_gradient_norm=1.0,
-                 max_to_keep=5, res=32, nsteps=16, checkpoint_path=None):
+                 max_to_keep=5, res=32, nenvs=1, nsteps=16, checkpoint_path=None):
 
         tf.reset_default_graph()
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
-        ch = get_input_channels()
 
+        nbatch = nenvs*nsteps
+        ch = get_input_channels()
         ob_space = {
             'screen'  : [None, res, res, ch['screen']],
             'minimap' : [None, res, res, ch['minimap']],
@@ -34,9 +35,8 @@ class A2CAgent():
             'available_actions' : [None, ch['available_actions']]
         }
 
-        # TODO: set nbatch correct
-        step_model  = network(sess, ob_space=ob_space, nbatch=None, nsteps=nsteps, reuse=None, data_format=network_data_format)
-        train_model = network(sess, ob_space=ob_space, nbatch=None, nsteps=nsteps, reuse=True, data_format=network_data_format)
+        step_model  = network(sess, ob_space=ob_space, nbatch=nenvs,  nsteps=1,      reuse=None, data_format=network_data_format)
+        train_model = network(sess, ob_space=ob_space, nbatch=nbatch, nsteps=nsteps, reuse=True, data_format=network_data_format)
 
         # Define placeholders
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')

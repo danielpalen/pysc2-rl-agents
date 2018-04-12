@@ -69,6 +69,7 @@ def main():
         entropy_weight=args.entropy_weight,
         learning_rate=args.lr,
         max_to_keep=args.max_to_keep,
+        nenvs=args.envs,
         nsteps=args.steps_per_batch,
         res=args.res,
         checkpoint_path=ckpt_path

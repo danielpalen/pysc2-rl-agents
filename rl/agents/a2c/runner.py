@@ -3,13 +3,14 @@ import tensorflow as tf
 
 from pysc2.lib.actions import FunctionCall, FUNCTIONS
 
+from rl.agents.runner import BaseRunner
 from rl.common.pre_processing import Preprocessor
 from rl.common.pre_processing import is_spatial_action, stack_ndarray_dicts
 
 from rl.common.util import mask_unused_argument_samples, flatten_first_dims, flatten_first_dims_dict
 
 
-class A2CRunner():
+class A2CRunner(BaseRunner):
     def __init__(self, agent, envs, summary_writer=None,
                  train=True, n_steps=8, discount=0.99):
         """
@@ -30,7 +31,7 @@ class A2CRunner():
         self.preproc = Preprocessor()  # self.envs.observation_spec()[0])
         self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
         self.states = agent.initial_state
-        self.episode_counter = 0
+        self.episode_counter = 1
         self.cumulative_score = 0.0
 
     def run_batch(self, train_summary=False):
@@ -90,7 +91,7 @@ class A2CRunner():
 
     def _summarize_episode(self, timestep):
         score = timestep.observation["score_cumulative"][0]
-        episode = self.agent.get_global_step() // self.n_steps
+        episode = (self.agent.get_global_step() // self.n_steps) + 1 # because global_step is zero based
         if self.summary_writer is not None:
             summary = tf.Summary()
             summary.value.add(tag='sc2/episode_score', simple_value=score)

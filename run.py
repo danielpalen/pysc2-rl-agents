@@ -83,9 +83,10 @@ def main():
         n_steps=args.steps_per_batch
     )
 
-    i = 0
+    i = agent.get_global_step()
     try:
-        while True:
+        while args.iters==-1 or i<args.iters:
+
             write_summary = args.train and i % args.summary_iters == 0
 
             if i > 0 and i % args.save_iters == 0:
@@ -98,10 +99,7 @@ def main():
                 summary_writer.add_summary(summary, global_step=agent_step)
                 print('iter %d: loss = %f' % (agent_step, loss))
 
-            i += 1
-
-            if 0 <= args.iters <= i:
-                break
+            i+=1
 
     except KeyboardInterrupt:
         pass

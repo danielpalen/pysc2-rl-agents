@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib import layers
-from tensorflow.contrib.layers import fully_connected, conv2d # TODO: use these
+#from tensorflow.contrib import layers
+from tensorflow.contrib.layers import fully_connected, flatten, conv2d
 from tensorflow.contrib.distributions import Categorical
 
 from pysc2.lib import actions
@@ -39,7 +39,7 @@ class FullyConv():
 
         def embed_spatial(x, dims, name):
             x = from_nhwc(x)
-            out = layers.conv2d(
+            out = conv2d(
                 x, dims,
                 kernel_size=1,
                 stride=1,
@@ -50,14 +50,14 @@ class FullyConv():
             return to_nhwc(out)
 
         def embed_flat(x, dims, name):
-            return layers.fully_connected(
+            return fully_connected(
                 x, dims,
                 activation_fn=tf.nn.relu,
                 #scope="%s/emb_flat" % name)
                 scope="%s/conv_embFlat" % name)
 
         def input_conv(x, name):
-            conv1 = layers.conv2d(
+            conv1 = conv2d(
                 x, 16,
                 kernel_size=5,
                 stride=1,
@@ -65,7 +65,7 @@ class FullyConv():
                 activation_fn=tf.nn.relu,
                 data_format=data_format,
                 scope="%s/conv1" % name)
-            conv2 = layers.conv2d(
+            conv2 = conv2d(
                 conv1, 32,
                 kernel_size=3,
                 stride=1,
@@ -76,12 +76,12 @@ class FullyConv():
             return conv2
 
         def non_spatial_output(x, channels, name):
-            logits = layers.fully_connected(x, channels, activation_fn=None, scope="non_spatial_output/flat/{}".format(name))
+            logits = fully_connected(x, channels, activation_fn=None, scope="non_spatial_output/flat/{}".format(name))
             return tf.nn.softmax(logits)
 
         def spatial_output(x, name):
-            logits = layers.conv2d(x, 1, kernel_size=1, stride=1, activation_fn=None, data_format=data_format, scope="spatial_output/conv/{}".format(name))
-            logits = layers.flatten(to_nhwc(logits), scope="spatial_output/flat/{}".format(name))
+            logits = conv2d(x, 1, kernel_size=1, stride=1, activation_fn=None, data_format=data_format, scope="spatial_output/conv/{}".format(name))
+            logits = flatten(to_nhwc(logits), scope="spatial_output/flat/{}".format(name))
             return tf.nn.softmax(logits)
 
         def concat2DAlongChannel(lst):
@@ -126,10 +126,10 @@ class FullyConv():
             broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
             state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
-            flat_out = layers.flatten(to_nhwc(state_out), scope="flat_out")
-            fc = layers.fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope="fully_conf")
+            flat_out = flatten(to_nhwc(state_out), scope="flat_out")
+            fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope="fully_conf")
 
-            value = layers.fully_connected(fc, 1, activation_fn=None, scope="value")
+            value = fully_connected(fc, 1, activation_fn=None, scope="value")
             value = tf.reshape(value, [-1])
 
             fn_out = non_spatial_output(fc, NUM_FUNCTIONS, name='fn_out')

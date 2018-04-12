@@ -111,17 +111,11 @@ class A2CAgent():
             if states is not None: # For recurrent polies
                 feed_dict.update({train_model.STATES : states})
 
-            #ops = [train_op, loss, train_summary_op] if summary else [train_op, loss]
-            #res = sess.run(ops, feed_dict=feed_dict)
-
             agent_step = self.train_step
             self.train_step += 1
 
             if summary:
-                #_loss, _summary = res[1],res[2]
-                #return agent_step, _loss, _summary
-                _,_step,_loss,_summary = sess.run([train_op, global_step, loss, train_summary_op],
-                                                feed_dict=feed_dict)
+                _,_step,_loss,_summary = sess.run([train_op, global_step, loss, train_summary_op], feed_dict=feed_dict)
                 return _step, _loss, _summary
             else:
                 sess.run([train_op, loss], feed_dict=feed_dict)
@@ -129,7 +123,6 @@ class A2CAgent():
 
         def save(path, step=None):
             os.makedirs(path, exist_ok=True)
-            #step = step or self.train_step
             print("Saving agent to %s, step %d" % (path, sess.run(global_step)))
             ckpt_path = os.path.join(path, 'model.ckpt')
             saver.save(sess, ckpt_path, global_step=global_step)

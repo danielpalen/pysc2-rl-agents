@@ -122,7 +122,6 @@ class FullyConv():
             screen_out    = input_conv(from_nhwc(screen_emb), 'screen')
             minimap_out   = input_conv(from_nhwc(minimap_emb), 'minimap')
 
-            #size2d = tf.unstack(tf.shape(SCREEN)[1:3])
             broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
             state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 

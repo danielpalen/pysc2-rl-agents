@@ -126,7 +126,7 @@ class FullyConv():
             state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
             flat_out = flatten(to_nhwc(state_out), scope="flat_out")
-            fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope="fully_conf")
+            fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope="fully_con")
 
             value = fully_connected(fc, 1, activation_fn=None, scope="value")
             value = tf.reshape(value, [-1])

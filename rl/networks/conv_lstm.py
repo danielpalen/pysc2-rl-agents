@@ -1,11 +1,14 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib import layers, rnn
+from tensorflow.contrib import rnn # TODO: remove
+from tensorflow.contrib.layers import fully_connected, flatten, conv2d
+from tensorflow.contrib.distributions import Categorical
 
 from pysc2.lib import actions
 from pysc2.lib import features
 
 from rl.common.pre_processing import is_spatial_action, NUM_FUNCTIONS, FLAT_FEATURES
+from rl.common.util import mask_unavailable_actions
 
 
 class ConvLSTM():
@@ -15,13 +18,7 @@ class ConvLSTM():
     computations. Inputs and outputs are always in NHWC.
     """
 
-    def __init__(self, screen_input, minimap_input, flat_input, reuse=False, data_format='NCHW'):
-        """
-        Args:
-            screen_input  : tensor of shape (None x res x res x 17)
-            minimap_input : tensor of shape (None x res x res x 7)
-            flat_input    : tensor of shape (None x 11)
-        """
+    def __init__(self, sess, ob_space, nbatch, nsteps, reuse=False, data_format='NCHW'):
 
         def embed_obs(x, spec, embed_fn, name):
             feats = tf.split(x, len(spec), -1)
@@ -42,7 +39,7 @@ class ConvLSTM():
 
         def embed_spatial(x, dims, name):
             x = from_nhwc(x)
-            out = layers.conv2d(
+            out = conv2d(
                 x, dims,
                 kernel_size=1,
                 stride=1,
@@ -53,14 +50,14 @@ class ConvLSTM():
             return to_nhwc(out)
 
         def embed_flat(x, dims, name):
-            return layers.fully_connected(
+            return fully_connected(
                 x, dims,
                 activation_fn=tf.nn.relu,
                 #scope="%s/emb_flat" % name)
                 scope="%s/conv_embFlat" % name)
 
         def input_conv(x, name):
-            conv1 = layers.conv2d(
+            conv1 = conv2d(
                 x, 16,
                 kernel_size=5,
                 stride=1,
@@ -68,7 +65,7 @@ class ConvLSTM():
                 activation_fn=tf.nn.relu,
                 data_format=data_format,
                 scope="%s/conv1" % name)
-            conv2 = layers.conv2d(
+            conv2 = conv2d(
                 conv1, 32,
                 kernel_size=3,
                 stride=1,
@@ -79,12 +76,12 @@ class ConvLSTM():
             return conv2
 
         def non_spatial_output(x, channels, name):
-            logits = layers.fully_connected(x, channels, activation_fn=None, scope="non_spatial_output/flat/{}".format(name))
+            logits = fully_connected(x, channels, activation_fn=None, scope="non_spatial_output/flat/{}".format(name))
             return tf.nn.softmax(logits)
 
         def spatial_output(x, name):
-            logits = layers.conv2d(x, 1, kernel_size=1, stride=1, activation_fn=None, data_format=data_format, scope="spatial_output/conv/{}".format(name))
-            logits = layers.flatten(to_nhwc(logits), scope="spatial_output/flat/{}".format(name))
+            logits = conv2d(x, 1, kernel_size=1, stride=1, activation_fn=None, data_format=data_format, scope="spatial_output/conv/{}".format(name))
+            logits = flatten(to_nhwc(logits), scope="spatial_output/flat/{}".format(name))
             return tf.nn.softmax(logits)
 
         def concat2DAlongChannel(lst):
@@ -110,61 +107,61 @@ class ConvLSTM():
             return map2d
 
 
+        nenvs = nbatch//nsteps
+
+        SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
+        MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
+        FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
+        AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
+        STATES   = tf.placeholder(tf.float32, shape=(2, 1, 32, 32, 20), name='initial_state')
+
         with tf.variable_scope('model', reuse=reuse):
-            screen_emb = embed_obs(         # None x res x res x None
-                screen_input,               # None x res x res x 17
-                features.SCREEN_FEATURES,   # 17
-                embed_spatial, 'screen'
-            )
 
-            minimap_emb = embed_obs(        # None x res x res x None
-                minimap_input,              # None x res x res x 17
-                features.MINIMAP_FEATURES,  # 7
-                embed_spatial, 'minimap'
-            )
+            screen_emb  = embed_obs(SCREEN,  features.SCREEN_FEATURES,  embed_spatial, 'screen')
+            minimap_emb = embed_obs(MINIMAP, features.MINIMAP_FEATURES, embed_spatial, 'minimap')
+            flat_emb    = embed_obs(FLAT, FLAT_FEATURES, embed_flat, 'flat')
 
-            flat_emb = embed_obs(  # None x 11
-                flat_input,        # None x 11
-                FLAT_FEATURES,     # 11
-                embed_flat, 'flat'
-            )
+            screen_out    = input_conv(from_nhwc(screen_emb), 'screen')
+            minimap_out   = input_conv(from_nhwc(minimap_emb), 'minimap')
 
-            screen_out  = input_conv(from_nhwc(screen_emb),  'screen')
-            minimap_out = input_conv(from_nhwc(minimap_emb), 'minimap')
-
-            size2d = tf.unstack(tf.shape(screen_input)[1:3])
-            broadcast_out = broadcast_along_channels(flat_emb, size2d)
-            state_out = to_nhwc(concat2DAlongChannel([screen_out, minimap_out, broadcast_out]))
+            broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
+            state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
             # recurrent trajectory length?
-            n_steps = 1  # TODO: pass this here!
+            #n_steps = 1  # TODO: pass this here!
 
             # [batch_size, traj_len, res, res, features]
-            convLSTM_shape = tf.concat([[-1, n_steps],tf.shape(state_out)[1:]], axis=0)
+            convLSTM_shape = tf.concat([[nenvs, nsteps],tf.shape(state_out)[1:]], axis=0)
 
             # [traj_len, batch_size, res, res, features]
             convLSTM_inputs = tf.transpose(tf.reshape(state_out, convLSTM_shape), [1, 0, 2, 3, 4])
 
-            convLSTMCell = ConvLSTMCell(
-                shape=[32, 32],  # TODO: infer these!
-                filters=16,
-                kernel=[3, 3],
-                reuse=reuse
-            )
+            # TODO: maybe pass config here
+            convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=20, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
+
+            print('state_size', convLSTMCell.state_size)
+            #print('output_size', convLSTMCell.output_size)
 
             convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
                 convLSTMCell,
                 convLSTM_inputs,
-                # initial_state=, TODO: set inital state for each step.
+                #initial_state=STATES,
                 time_major=False,
                 dtype=tf.float32,
                 scope="dynamic_rnn"
             )
 
-            flat_out = layers.flatten(convLSTM_state, scope='flat_out')
-            fc = layers.fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_conf')
+            print('state_out', state_out)
+            print('convLST_shape', convLSTM_shape)
+            print('inputs', convLSTM_inputs)
+            print('outputs', convLSTM_outputs)
+            print('states',  convLSTM_state)
 
-            value = layers.fully_connected(fc, 1, activation_fn=None, scope='value')
+            flat_out = flatten(convLSTM_outputs, scope='flat_out')
+            print('flat_out',  flat_out)
+            fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
+
+            value = fully_connected(fc, 1, activation_fn=None, scope='value')
             value = tf.reshape(value, [-1])
 
             fn_out = non_spatial_output(fc, NUM_FUNCTIONS, 'fn_name')
@@ -179,8 +176,57 @@ class ConvLSTM():
 
             policy = (fn_out, args_out)
 
+
+        def sample_actions(available_actions, policy):
+            """Sample function ids and arguments from a predicted policy."""
+
+            def sample(probs):
+                dist = Categorical(probs=probs)
+                return dist.sample()
+
+            fn_pi, arg_pis = policy
+            fn_pi = mask_unavailable_actions(available_actions, fn_pi)
+            fn_samples = sample(fn_pi)
+
+            arg_samples = dict()
+            for arg_type, arg_pi in arg_pis.items():
+                arg_samples[arg_type] = sample(arg_pi)
+
+            return fn_samples, arg_samples
+
+        action = sample_actions(AV_ACTS, policy)
+
+        def step(obs, state, mask=None):
+            feed_dict = {
+                SCREEN : obs['screen'],
+                MINIMAP: obs['minimap'],
+                FLAT   : obs['flat'],
+                AV_ACTS: obs['available_actions'],
+                STATES  : state
+            }
+            return sess.run([action, value, convLSTM_state], feed_dict=feed_dict)
+
+
+        def get_value(obs, state, mask=None):
+            feed_dict = {
+                SCREEN : obs['screen'],
+                MINIMAP: obs['minimap'],
+                FLAT   : obs['flat'],
+                STATES  : state
+            }
+            return sess.run([value], feed_dict=feed_dict)
+
+
+        self.SCREEN  = SCREEN
+        self.MINIMAP = MINIMAP
+        self.FLAT    = FLAT
+        self.AV_ACTS = AV_ACTS
+        self.STATES  = STATES
         self.policy = policy
-        self.value = value
+        self.value  = value
+        self.step = step
+        self.get_value = get_value
+        self.initial_state = np.zeros((2, 1, 32, 32, 20), dtype=np.float32) # TODO: figure out dimensions
 
 
 class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):

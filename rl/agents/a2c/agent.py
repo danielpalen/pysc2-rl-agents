@@ -17,7 +17,7 @@ class A2CAgent():
     A2C agent
     """
 
-    def __init__(self, network=FullyConv, network_data_format='NCHW', value_loss_weight=0.5,
+    def __init__(self, network=ConvLSTM, network_data_format='NCHW', value_loss_weight=0.5,
                  entropy_weight=1e-3, learning_rate=7e-4, max_gradient_norm=1.0,
                  max_to_keep=5, res=32, nenvs=1, nsteps=16, checkpoint_path=None):
 

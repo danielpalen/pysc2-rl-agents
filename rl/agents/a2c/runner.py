@@ -120,7 +120,7 @@ def compute_returns_and_advs(rewards, dones, values, next_values, discount):
     """
     returns = np.zeros([rewards.shape[0] + 1, rewards.shape[1]])
 
-    returns[-1, :] = next_values
+    returns[-1, :] = next_values[0] #where does 0 have to come from?
     for t in reversed(range(rewards.shape[0])):
         future_rewards = discount * returns[t + 1, :] * (1 - dones[t, :])
         returns[t, :] = rewards[t, :] + future_rewards

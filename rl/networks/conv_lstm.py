@@ -214,7 +214,7 @@ class ConvLSTM():
                 FLAT   : obs['flat'],
                 STATES  : state
             }
-            return sess.run([value], feed_dict=feed_dict)
+            return sess.run(value, feed_dict=feed_dict)
 
 
         self.SCREEN  = SCREEN

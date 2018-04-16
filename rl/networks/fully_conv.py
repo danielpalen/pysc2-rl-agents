@@ -180,7 +180,7 @@ class FullyConv():
                 MINIMAP: obs['minimap'],
                 FLAT   : obs['flat']
             }
-            return sess.run([value], feed_dict=feed_dict)
+            return sess.run(value, feed_dict=feed_dict)
 
 
         self.SCREEN  = SCREEN

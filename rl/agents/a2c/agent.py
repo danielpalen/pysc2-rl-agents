@@ -108,7 +108,7 @@ class A2CAgent():
                 ACTIONS[0]: actions[0]
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
-            if states is not None: # For recurrent polies
+            if states is not None: # For recurrent polices
                 feed_dict.update({train_model.STATES : states})
 
             agent_step = self.train_step

@@ -108,12 +108,15 @@ class ConvLSTM():
 
 
         nenvs = nbatch//nsteps
+        res = ob_space['screen'][1]
+        filters = 20
+        state_shape = (2, nenvs, res, res, filters)
 
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
         FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
         AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
-        STATES   = tf.placeholder(tf.float32, shape=(2, 1, 32, 32, 20), name='initial_state')
+        STATES   = tf.placeholder(tf.float32, shape=state_shape, name='initial_state')
 
         with tf.variable_scope('model', reuse=reuse):
 
@@ -127,20 +130,15 @@ class ConvLSTM():
             broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
             state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
-            # recurrent trajectory length?
-            #n_steps = 1  # TODO: pass this here!
-
             # [batch_size, traj_len, res, res, features]
             convLSTM_shape = tf.concat([[nenvs, nsteps],tf.shape(state_out)[1:]], axis=0)
+            convLSTM_inputs = tf.reshape(state_out, convLSTM_shape)
 
-            # [traj_len, batch_size, res, res, features]
-            convLSTM_inputs = tf.transpose(tf.reshape(state_out, convLSTM_shape), [1, 0, 2, 3, 4])
+            # print('convLST_shape', convLSTM_shape)
+            # print('inputs', convLSTM_inputs)
 
             # TODO: maybe pass config here
-            convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=20, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
-
-            print('state_size', convLSTMCell.state_size)
-            #print('output_size', convLSTMCell.output_size)
+            convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=filters, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
 
             convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
                 convLSTMCell,
@@ -150,28 +148,34 @@ class ConvLSTM():
                 dtype=tf.float32,
                 scope="dynamic_rnn"
             )
+            # REVIEW: does this reshape operation still keep everything logically correct?
+            outputs = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
 
-            print('state_out', state_out)
-            print('convLST_shape', convLSTM_shape)
-            print('inputs', convLSTM_inputs)
-            print('outputs', convLSTM_outputs)
-            print('states',  convLSTM_state)
-
-            flat_out = flatten(convLSTM_outputs, scope='flat_out')
-            print('flat_out',  flat_out)
+            flat_out = flatten(outputs, scope='flat_out')
             fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
+
+
+            # print('#######################################')
+            # print('state_out', state_out)
+            # print('convLST_shape', convLSTM_shape)
+            # print('inputs', convLSTM_inputs)
+            # print('outputs_unreshaped', convLSTM_outputs)
+            # print('outputs', outputs)
+            # print('states',  convLSTM_state)
+            # print('flat_out',  flat_out)
+            # print('#######################################')
 
             value = fully_connected(fc, 1, activation_fn=None, scope='value')
             value = tf.reshape(value, [-1])
 
-            fn_out = non_spatial_output(fc, NUM_FUNCTIONS, 'fn_name')
+            fn_out = non_spatial_output(fc, channels=NUM_FUNCTIONS, name='fn_name')
 
             args_out = dict()
             for arg_type in actions.TYPES:
                 if is_spatial_action[arg_type]:
-                    arg_out = spatial_output(state_out, name=arg_type.name)
+                    arg_out = spatial_output(outputs, name=arg_type.name) # TODO: use something like convLSTM_outputs here
                 else:
-                    arg_out = non_spatial_output(fc, arg_type.sizes[0], name=arg_type.name)
+                    arg_out = non_spatial_output(fc, channels=arg_type.sizes[0], name=arg_type.name)
                 args_out[arg_type] = arg_out
 
             policy = (fn_out, args_out)
@@ -202,7 +206,7 @@ class ConvLSTM():
                 MINIMAP: obs['minimap'],
                 FLAT   : obs['flat'],
                 AV_ACTS: obs['available_actions'],
-                STATES  : state
+                STATES : state
             }
             return sess.run([action, value, convLSTM_state], feed_dict=feed_dict)
 
@@ -212,7 +216,7 @@ class ConvLSTM():
                 SCREEN : obs['screen'],
                 MINIMAP: obs['minimap'],
                 FLAT   : obs['flat'],
-                STATES  : state
+                STATES : state
             }
             return sess.run(value, feed_dict=feed_dict)
 
@@ -226,7 +230,7 @@ class ConvLSTM():
         self.value  = value
         self.step = step
         self.get_value = get_value
-        self.initial_state = np.zeros((2, 1, 32, 32, 20), dtype=np.float32) # TODO: figure out dimensions
+        self.initial_state = np.zeros(state_shape, dtype=np.float32) # TODO: figure out dimensions
 
 
 class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):

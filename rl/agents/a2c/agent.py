@@ -3,6 +3,7 @@ import os
 import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.contrib.distributions import Categorical
+from tensorflow.python import debug as tf_debug
 
 from pysc2.lib.actions import TYPES as ACTION_TYPES
 
@@ -19,12 +20,22 @@ class A2CAgent():
 
     def __init__(self, network=ConvLSTM, network_data_format='NCHW', value_loss_weight=0.5,
                  entropy_weight=1e-3, learning_rate=7e-4, max_gradient_norm=1.0,
-                 max_to_keep=5, res=32, nenvs=1, nsteps=16, checkpoint_path=None):
+                 max_to_keep=5, res=32, nenvs=1, nsteps=16, checkpoint_path=None,
+                 debug = False, debug_tb_adress = None):
 
         tf.reset_default_graph()
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
+
+        if  debug and debug_tb_adress:
+            raise ValueError(
+        "The --debug and --tensorboard_debug_address flags are mutually "
+        "exclusive.")
+        if  debug:
+            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+        elif  debug_tb_adress:
+            sess = tf_debug.TensorBoardDebugWrapperSession(sess, debug_tb_adress)
 
         nbatch = nenvs*nsteps
         ch = get_input_channels()

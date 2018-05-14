@@ -72,7 +72,9 @@ def main():
         nenvs=args.envs,
         nsteps=args.steps_per_batch,
         res=args.res,
-        checkpoint_path=ckpt_path
+        checkpoint_path=ckpt_path,
+        debug=args.debug,
+        debug_tb_adress=args.tensorboard_debug_address
     )
 
     runner = A2CRunner(

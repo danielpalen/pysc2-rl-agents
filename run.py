@@ -12,6 +12,7 @@ from rl.agents.a2c.agent import A2CAgent
 from rl.agents.ppo.runner import PPORunner
 from rl.agents.ppo.agent import PPOAgent
 from rl.networks.fully_conv import FullyConv
+from rl.networks.conv_lstm import ConvLSTM
 from rl.environment import SubprocVecEnv, make_sc2env, SingleEnv
 from rl.common.cmd_util import SC2ArgumentParser
 
@@ -21,8 +22,16 @@ FLAGS = flags.FLAGS
 FLAGS(['run.py'])
 
 agents = {
-    'a2c': [A2CAgent, A2CRunner],
-    'ppo': [PPOAgent, PPORunner]
+    'a2c': {
+        'agent' : A2CAgent,
+        'runner': A2CRunner,
+        'policies' : {
+            'fully_conv' : FullyConv,
+            'conv_lstm' : ConvLSTM
+        }
+    },
+    # 'feudal' : {}
+    # 'ppo': {},
 }
 
 args = SC2ArgumentParser().parse_args()
@@ -33,7 +42,15 @@ summary_path = os.path.join(args.summary_dir, args.experiment_id, summary_type)
 
 
 def main():
-    print(ckpt_path)
+
+    if not args.agent in agents:
+        print("Error '{}' agent does not exist!".format(args.agent))
+        sys.exit(1)
+
+    if not args.policy in agents[args.agent]['policies']:
+        print("Error: '{}' policy does not exist for '{}' agent!".format(args.policy, args.agent))
+        sys.exit(1)
+
     if args.train and args.ow and (os.path.isdir(summary_path) or os.path.isdir(ckpt_path)):
         yes,no = {'yes','y'},{'no','n', ''}
         choice = input(
@@ -71,9 +88,13 @@ def main():
 
     # TODO: We should actually do individual setup and argument parser methods
     # for each agent since they require different parameters etc.
-    print('Running', args.agent, 'Agent #TODO: implement!!')
+    print('################################\n#')
+    print('#  Running {} Agent with {} policy'.format(args.agent, args.policy))
+    print('#\n################################')
 
-    agent = A2CAgent(
+    # TODO: pass args directly so each agent and runner can pick theirs
+    agent = agents[args.agent]['agent'](
+        network=agents[args.agent]['policies'][args.policy],
         network_data_format=network_data_format,
         value_loss_weight=args.value_loss_weight,
         entropy_weight=args.entropy_weight,
@@ -87,7 +108,7 @@ def main():
         debug_tb_adress=args.tensorboard_debug_address
     )
 
-    runner = A2CRunner(
+    runner = agents[args.agent]['runner'](
         envs=envs,
         agent=agent,
         train=args.train,

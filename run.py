@@ -33,9 +33,19 @@ summary_path = os.path.join(args.summary_dir, args.experiment_id, summary_type)
 
 
 def main():
-    if args.train and args.ow:
-        shutil.rmtree(ckpt_path, ignore_errors=True)
-        shutil.rmtree(summary_path, ignore_errors=True)
+    print(ckpt_path)
+    if args.train and args.ow and (os.path.isdir(summary_path) or os.path.isdir(ckpt_path)):
+        yes,no = {'yes','y'},{'no','n', ''}
+        choice = input(
+            "\nWARNING! An experiment with the name '{}' already exists.\nAre you sure you want to overwrite it? [y/N]: "
+            .format(args.experiment_id)
+        ).lower()
+        if choice in yes:
+            shutil.rmtree(ckpt_path, ignore_errors=True)
+            shutil.rmtree(summary_path, ignore_errors=True)
+        else:
+            print('Quitting program.')
+            sys.exit(0)
 
     size_px = (args.res, args.res)
     env_args = dict(

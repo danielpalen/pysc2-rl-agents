@@ -128,6 +128,9 @@ class FullyConv():
             flat_out = flatten(to_nhwc(state_out), scope="flat_out")
             fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope="fully_con")
 
+            print(state_out)
+            print(fc)
+
             value = fully_connected(fc, 1, activation_fn=None, scope="value")
             value = tf.reshape(value, [-1])
 
@@ -135,6 +138,7 @@ class FullyConv():
 
             args_out = dict()
             for arg_type in actions.TYPES:
+                print(arg_type)
                 if is_spatial_action[arg_type]:
                     arg_out = spatial_output(state_out, name=arg_type.name)
                 else:

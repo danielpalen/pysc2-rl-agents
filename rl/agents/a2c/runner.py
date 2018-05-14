@@ -11,8 +11,7 @@ from rl.common.util import mask_unused_argument_samples, flatten_first_dims, fla
 
 
 class A2CRunner(BaseRunner):
-    def __init__(self, agent, envs, summary_writer=None,
-                 train=True, n_steps=8, discount=0.99):
+    def __init__(self, agent, envs, summary_writer, args):
         """
         Args:
           agent: A2CAgent instance.
@@ -22,14 +21,23 @@ class A2CRunner(BaseRunner):
           n_steps: number of agent steps for collecting rollouts.
           discount: future reward discount.
         """
+
         self.agent = agent
         self.envs = envs
         self.summary_writer = summary_writer
-        self.train = train
-        self.n_steps = n_steps
-        self.discount = discount
+        self.train    = args.train
+        self.n_steps  = args.steps_per_batch
+        self.discount = args.discount
+
         self.preproc = Preprocessor()
         self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
+
+        print('\n### A2C Runner #######')
+        print(f'# agent = {self.agent}')
+        print(f'# train = {self.train}')
+        print(f'# n_steps = {self.n_steps}')
+        print(f'# discount = {self.discount}')
+        print('######################\n')
 
         # TODO: we probably need to save this state during checkpoing
         self.states = agent.initial_state

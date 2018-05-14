@@ -40,7 +40,7 @@ agents = {
 
 args = SC2ArgumentParser().parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-ckpt_path = os.path.join(args.save_dir, args.experiment_id)
+args.ckpt_path = os.path.join(args.save_dir, args.experiment_id)
 summary_type = 'train' if args.train else 'eval'
 summary_path = os.path.join(args.summary_dir, args.experiment_id, summary_type)
 
@@ -55,14 +55,14 @@ def main():
         print("Error: '{}' policy does not exist for '{}' agent!".format(args.policy, args.agent))
         sys.exit(1)
 
-    if args.train and args.ow and (os.path.isdir(summary_path) or os.path.isdir(ckpt_path)):
+    if args.train and args.ow and (os.path.isdir(summary_path) or os.path.isdir(args.ckpt_path)):
         yes,no = {'yes','y'},{'no','n', ''}
         choice = input(
             "\nWARNING! An experiment with the name '{}' already exists.\nAre you sure you want to overwrite it? [y/N]: "
             .format(args.experiment_id)
         ).lower()
         if choice in yes:
-            shutil.rmtree(ckpt_path, ignore_errors=True)
+            shutil.rmtree(args.ckpt_path, ignore_errors=True)
             shutil.rmtree(summary_path, ignore_errors=True)
         else:
             print('Quitting program.')
@@ -92,34 +92,13 @@ def main():
 
     # TODO: We should actually do individual setup and argument parser methods
     # for each agent since they require different parameters etc.
-    print('################################\n#')
+    print('\n################################\n#')
     print('#  Running {} Agent with {} policy'.format(args.agent, args.policy))
-    print('#\n################################')
+    print('#\n################################\n')
 
     # TODO: pass args directly so each agent and runner can pick theirs
-    agent = agents[args.agent]['agent'](
-        network=agents[args.agent]['policies'][args.policy],
-        network_data_format=network_data_format,
-        value_loss_weight=args.value_loss_weight,
-        entropy_weight=args.entropy_weight,
-        learning_rate=args.lr,
-        max_to_keep=args.max_to_keep,
-        nenvs=args.envs,
-        nsteps=args.steps_per_batch,
-        res=args.res,
-        checkpoint_path=ckpt_path,
-        debug=args.debug,
-        debug_tb_adress=args.tensorboard_debug_address
-    )
-
-    runner = agents[args.agent]['runner'](
-        envs=envs,
-        agent=agent,
-        train=args.train,
-        summary_writer=summary_writer,
-        discount=args.discount,
-        n_steps=args.steps_per_batch
-    )
+    agent  = agents[args.agent]['agent'](agents[args.agent]['policies'][args.policy], args)
+    runner = agents[args.agent]['runner'](agent, envs, summary_writer, args)
 
     i = agent.get_global_step()
     try:
@@ -152,7 +131,7 @@ def main():
 
 def _save_if_training(agent, summary_writer):
     if args.train:
-        agent.save(ckpt_path)
+        agent.save(args.ckpt_path)
         summary_writer.flush()
         sys.stdout.flush()
 

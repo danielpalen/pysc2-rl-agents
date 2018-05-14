@@ -18,17 +18,43 @@ class A2CAgent():
     A2C agent
     """
 
-    def __init__(self, network=ConvLSTM, network_data_format='NCHW', value_loss_weight=0.5,
-                 entropy_weight=1e-3, learning_rate=7e-4, max_gradient_norm=1.0,
-                 max_to_keep=5, res=32, nenvs=1, nsteps=16, checkpoint_path=None,
-                 debug = False, debug_tb_adress = None):
+    def __init__(self, policy, args):
+
+        network_data_format = 'NHWC' if args.nhwc else 'NCHW'
+        value_loss_weight = args.value_loss_weight
+        entropy_weight = args.entropy_weight
+        learning_rate = args.lr
+        max_to_keep = args.max_to_keep
+        nenvs = args.envs
+        nsteps = args.steps_per_batch
+        res = args.res
+        checkpoint_path = args.ckpt_path
+        debug = args.debug
+        debug_tb_adress = args.tensorboard_debug_address
+
+        print('\n### A2C Agent #######')
+        print(f'# policy = {policy}')
+        print(f'# network_data_format = {network_data_format}')
+        print(f'# value_loss_weight = {value_loss_weight}')
+        print(f'# entropy_weight = {entropy_weight}')
+        print(f'# learning_rate = {learning_rate}')
+        print(f'# max_to_keep = {max_to_keep}')
+        print(f'# nenvs = {nenvs}')
+        print(f'# nsteps = {nsteps}')
+        print(f'# res = {res}')
+        print(f'# checkpoint_path = {checkpoint_path}')
+        print(f'# debug = {debug}')
+        print(f'# debug_tb_adress = {debug_tb_adress}')
+        print('######################\n')
+
+        max_gradient_norm = 1.0
 
         tf.reset_default_graph()
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
 
-        if  debug and debug_tb_adress:
+        if debug and debug_tb_adress:
             raise ValueError(
         "The --debug and --tensorboard_debug_address flags are mutually "
         "exclusive.")
@@ -46,8 +72,8 @@ class A2CAgent():
             'available_actions' : [None, ch['available_actions']]
         }
 
-        step_model  = network(sess, ob_space=ob_space, nbatch=nenvs,  nsteps=1,      reuse=None, data_format=network_data_format)
-        train_model = network(sess, ob_space=ob_space, nbatch=nbatch, nsteps=nsteps, reuse=True, data_format=network_data_format)
+        step_model  = policy(sess, ob_space=ob_space, nbatch=nenvs,  nsteps=1,      reuse=None, data_format=network_data_format)
+        train_model = policy(sess, ob_space=ob_space, nbatch=nbatch, nsteps=nsteps, reuse=True, data_format=network_data_format)
 
         # Define placeholders
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')

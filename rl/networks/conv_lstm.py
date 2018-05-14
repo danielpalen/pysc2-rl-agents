@@ -19,6 +19,8 @@ class ConvLSTM():
     computations. Inputs and outputs are always in NHWC.
     """
 
+    # BUG: does not work with NCHW yet.
+
     def __init__(self, sess, ob_space, nbatch, nsteps, reuse=False, data_format='NCHW'):
 
         def embed_obs(x, spec, embed_fn, name):

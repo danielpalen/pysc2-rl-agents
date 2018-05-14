@@ -121,15 +121,44 @@ class Feudal:
             broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
             z = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
+
+
             with tf.variabl_scope('manager', reuse=reuse):
-                s = # Dimensionaliy reduction on z to get R^d vector.
+                # Dimensionaliy reduction on z to get R^d vector.
+                s = fully_connected(flatten(z), 512, activation_fn=tf.nn.relu, scope="/s")
+
+                # LSTM in between
+
                 g = # Goal
+
+                # manage value function from LSTM output
+
+
 
             with tf.variable_scope('worker', reuse=reuse):
 
                 cut_g = tf.stop_gradient(g)
                 # maybe broadcast cut_g along z?
 
+                # ConvLSTM Cell in between
+
+                flat_out = flatten(convLSTM_outputs, scope='flat_out')
+                fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
+
+                value = fully_connected(fc, 1, activation_fn=None, scope='value')
+                value = tf.reshape(value, [-1])
+
+                fn_out = non_spatial_output(fc, NUM_FUNCTIONS, 'fn_name')
+
+                args_out = dict()
+                for arg_type in actions.TYPES:
+                    if is_spatial_action[arg_type]:
+                        arg_out = spatial_output(state_out, name=arg_type.name)
+                    else:
+                        arg_out = non_spatial_output(fc, arg_type.sizes[0], name=arg_type.name)
+                    args_out[arg_type] = arg_out
+
+                policy = (fn_out, args_out)
 
         def step(obs, state, goal, maks=None):
             pass
@@ -140,6 +169,7 @@ class Feudal:
         self.FLAT    = FLAT
         self.AV_ACTS = AV_ACTS
 
+        # TODO
         self.manager_value = None
         self.worker_value = None
 

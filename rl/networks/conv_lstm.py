@@ -109,14 +109,14 @@ class ConvLSTM():
 
         nenvs = nbatch//nsteps
         res = ob_space['screen'][1]
-        filters = 20
+        filters = 75
         state_shape = (2, nenvs, res, res, filters)
 
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
         FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
         AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
-        STATES   = tf.placeholder(tf.float32, shape=state_shape, name='initial_state')
+        STATES  = tf.placeholder(tf.float32, shape=state_shape, name='initial_state')
 
         with tf.variable_scope('model', reuse=reuse):
 
@@ -134,36 +134,19 @@ class ConvLSTM():
             convLSTM_shape = tf.concat([[nenvs, nsteps],tf.shape(state_out)[1:]], axis=0)
             convLSTM_inputs = tf.reshape(state_out, convLSTM_shape)
 
-            # print('convLST_shape', convLSTM_shape)
-            # print('inputs', convLSTM_inputs)
-
-            # TODO: maybe pass config here
             convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=filters, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
-
             convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
                 convLSTMCell,
                 convLSTM_inputs,
-                #initial_state=STATES,
+                initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0],STATES[1]),
                 time_major=False,
                 dtype=tf.float32,
                 scope="dynamic_rnn"
             )
-            # REVIEW: does this reshape operation still keep everything logically correct?
             outputs = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
-
+            
             flat_out = flatten(outputs, scope='flat_out')
             fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
-
-
-            # print('#######################################')
-            # print('state_out', state_out)
-            # print('convLST_shape', convLSTM_shape)
-            # print('inputs', convLSTM_inputs)
-            # print('outputs_unreshaped', convLSTM_outputs)
-            # print('outputs', outputs)
-            # print('states',  convLSTM_state)
-            # print('flat_out',  flat_out)
-            # print('#######################################')
 
             value = fully_connected(fc, 1, activation_fn=None, scope='value')
             value = tf.reshape(value, [-1])

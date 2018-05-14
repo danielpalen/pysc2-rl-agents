@@ -28,8 +28,10 @@ class A2CRunner(BaseRunner):
         self.train = train
         self.n_steps = n_steps
         self.discount = discount
-        self.preproc = Preprocessor()  # self.envs.observation_spec()[0])
+        self.preproc = Preprocessor()
         self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
+
+        # TODO: we probably need to save this state during checkpoing
         self.states = agent.initial_state
         self.episode_counter = 1
         self.cumulative_score = 0.0
@@ -49,7 +51,7 @@ class A2CRunner(BaseRunner):
         rewards  = np.zeros(shapes, dtype=np.float32)
         dones    = np.zeros(shapes, dtype=np.float32)
         all_obs, all_actions = [], []
-        mb_states = self.states # save the initial states at the beginning of each mb.
+        mb_states = self.states # save the initial states at the beginning of each mb for later training.
 
         for n in range(self.n_steps):
             actions, values[n,:], states = self.agent.step(last_obs, self.states)

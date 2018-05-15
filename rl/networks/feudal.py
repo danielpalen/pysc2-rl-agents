@@ -9,7 +9,7 @@ from pysc2.lib import features
 
 from rl.common.pre_processing import is_spatial_action, NUM_FUNCTIONS, FLAT_FEATURES
 from rl.common.util import mask_unavailable_actions
-
+from rl.networks.util.cells import ConvLSTMCell
 
 class Feudal:
     """Feudal Networks network implementation based on https://arxiv.org/pdf/1703.01161.pdf"""

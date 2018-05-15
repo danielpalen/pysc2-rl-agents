@@ -146,6 +146,25 @@ class Feudal:
                 cut_g = tf.stop_gradient(g)
                 broadcast_g = broadcast_along_channels(cut_g, ob_space['screen'][1:3])
                 z_g = concat2DAlongChannel([z,broadcast_g])
+
+                # TODO: make (dilated) ConvLSTM Cell
+                # TODO: what's the dimensions in batch_size??
+                convLSTM_shape = tf.concat([[nenvs, nsteps],tf.shape(state_out)[1:]], axis=0)
+
+                convLSTM_inputs = tf.reshape(z_g, convLSTM_shape)
+
+                convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=filters, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
+                convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
+                    convLSTMCell,
+                    convLSTM_inputs,
+                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0],STATES[1]), # TODO: pass correct hidden state
+                    time_major=False,
+                    dtype=tf.float32,
+                    scope="dynamic_rnn"
+                )
+                # TODO: what's the dimensions in batch_size??
+                outputs = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
+
                 flat_out = flatten(outputs, scope='flat_out')
                 fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
 

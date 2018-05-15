@@ -144,11 +144,9 @@ class Feudal:
             with tf.variable_scope('worker', reuse=reuse):
 
                 cut_g = tf.stop_gradient(g)
-                # maybe broadcast cut_g along z?
-
-                # ConvLSTM Cell in between
-
-                flat_out = flatten(convLSTM_outputs, scope='flat_out')
+                broadcast_g = broadcast_along_channels(cut_g, ob_space['screen'][1:3])
+                z_g = concat2DAlongChannel([z,broadcast_g])
+                flat_out = flatten(outputs, scope='flat_out')
                 fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
 
                 value = fully_connected(fc, 1, activation_fn=None, scope='value')

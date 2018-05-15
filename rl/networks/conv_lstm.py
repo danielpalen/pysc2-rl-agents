@@ -59,7 +59,6 @@ class ConvLSTM():
             return fully_connected(
                 x, dims,
                 activation_fn=tf.nn.relu,
-                #scope="%s/emb_flat" % name)
                 scope="%s/conv_embFlat" % name)
 
         def input_conv(x, name):

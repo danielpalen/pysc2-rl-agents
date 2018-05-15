@@ -16,6 +16,11 @@ class Feudal:
 
     def __init__(self, sess, ob_space, nbatch, nsteps, reuse=False, data_format='NCHW'):
 
+        # BUG: does not work with NCHW yet.
+        if data_format=='NCHW':
+            print('WARNING! NCHW not yet implemented for ConvLSTM. Switching to NHWC')
+        data_format='NHWC'
+
         def embed_obs(x, spec, embed_fn, name):
             feats = tf.split(x, len(spec), -1)
             out_list = []

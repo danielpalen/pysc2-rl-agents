@@ -112,7 +112,8 @@ class Feudal:
         FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
         AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
 
-        # GOAL placeholder?
+        W_STATES = None # TODO
+        GOAL = NONE # TODO
 
         with tf.variable_scope('model', reuse=reuse):
 

@@ -17,7 +17,7 @@ from rl.environment import SubprocVecEnv, make_sc2env, SingleEnv
 from rl.common.cmd_util import SC2ArgumentParser
 
 # Just disables warnings for mussing AVX/FMA instructions
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 # Workaround for pysc2 flags

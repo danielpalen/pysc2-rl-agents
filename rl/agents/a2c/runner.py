@@ -17,9 +17,11 @@ class A2CRunner(BaseRunner):
           agent: A2CAgent instance.
           envs: SubprocVecEnv instance.
           summary_writer: summary writer to log episode scores.
-          train: whether to train the agent.
-          n_steps: number of agent steps for collecting rollouts.
-          discount: future reward discount.
+          args: {
+            train: whether to train the agent.
+            n_steps: number of agent steps for collecting rollouts.
+            discount: future reward discount.
+          }
         """
 
         self.agent = agent
@@ -42,6 +44,7 @@ class A2CRunner(BaseRunner):
         # TODO: we probably need to save this state during checkpoing
         self.states = agent.initial_state
         self.episode_counter = 1
+        self.max_score = 0.0
         self.cumulative_score = 0.0
 
     def run_batch(self, train_summary=False):
@@ -98,6 +101,9 @@ class A2CRunner(BaseRunner):
     def get_mean_score(self):
         return self.cumulative_score / self.episode_counter
 
+    def get_max_score(self):
+        return self.max_score
+
 
     def _summarize_episode(self, timestep):
         score = timestep.observation["score_cumulative"][0]
@@ -108,6 +114,7 @@ class A2CRunner(BaseRunner):
             self.summary_writer.add_summary(summary, episode)
 
         print("episode %d: score = %f" % (episode, score))
+        self.max_score = max(self.max_score, score)
         self.episode_counter += 1
         return score
 

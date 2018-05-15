@@ -126,7 +126,8 @@ def main():
     envs.close()
     summary_writer.close()
 
-    print('mean score: %f' % runner.get_mean_score())
+    print(f'mean score: {runner.get_mean_score()}')
+    print(f'max  score: {runner.get_max_score()}')
 
 
 def _save_if_training(agent, summary_writer):

@@ -54,7 +54,6 @@ class Feudal:
             return fully_connected(
                 x, dims,
                 activation_fn=tf.nn.relu,
-                #scope="%s/emb_flat" % name)
                 scope="%s/conv_embFlat" % name)
 
         def input_conv(x, name):
@@ -130,12 +129,14 @@ class Feudal:
 
 
             with tf.variabl_scope('manager', reuse=reuse):
+                # REVIEW: maybe we want to put some strided convolutions in here because flattening
+                # z gives a pretty big vector.
                 # Dimensionaliy reduction on z to get R^d vector.
                 s = fully_connected(flatten(z), 512, activation_fn=tf.nn.relu, scope="/s")
 
                 # LSTM in between
 
-                g = # Goal
+                g = # Goal in R^d
 
                 # manage value function from LSTM output
 

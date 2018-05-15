@@ -1,2 +1,4 @@
 class FeudalAgent():
-    pass
+
+    def __init__(self, policy, args):
+        pass

@@ -12,6 +12,8 @@ class SC2ArgumentParser():
         # General Args
         parser.add_argument('--agent', type=str, default='a2c',
                             help='which agent to use')
+        parser.add_argument('--policy', type=str, default='fully_conv',
+                            help='which policy the agent shoul use.'),
         parser.add_argument('--eval', action='store_true',
                             help='if false, episode scores are evaluated')
         parser.add_argument('--gpu', type=str, default='0',
@@ -34,6 +36,16 @@ class SC2ArgumentParser():
         parser.add_argument('--steps_per_batch', type=int, default=16,
                             help='number of agent steps when collecting trajectories for a single batch')
 
+        # Debug Args
+        ## documentation: https://www.tensorflow.org/programmers_guide/debugger
+        ## taken from https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/debug/examples/debug_mnist.py
+        parser.add_argument("--debug", type=bool, nargs="?", const=True, default=False,
+                            help="Use debugger to track down bad values during training. "
+                            "Mutually exclusive with the --tensorboard_debug_address flag.")
+        parser.add_argument("--tensorboard_debug_address", type=str, default=None,
+                            help="Connect to the TensorBoard Debugger Plugin backend specified by "
+                            "the gRPC address (e.g., localhost:1234). Mutually exclusive with the "
+                            "--debug flag.")
 
         # Summary and Checkpoint Args
         parser.add_argument('--max_to_keep', type=int, default=5,

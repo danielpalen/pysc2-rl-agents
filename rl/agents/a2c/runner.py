@@ -11,8 +11,7 @@ from rl.common.util import mask_unused_argument_samples, flatten_first_dims, fla
 
 
 class A2CRunner(BaseRunner):
-    def __init__(self, agent, envs, summary_writer=None,
-                 train=True, n_steps=8, discount=0.99):
+    def __init__(self, agent, envs, summary_writer, args):
         """
         Args:
           agent: A2CAgent instance.
@@ -22,14 +21,25 @@ class A2CRunner(BaseRunner):
           n_steps: number of agent steps for collecting rollouts.
           discount: future reward discount.
         """
+
         self.agent = agent
         self.envs = envs
         self.summary_writer = summary_writer
-        self.train = train
-        self.n_steps = n_steps
-        self.discount = discount
-        self.preproc = Preprocessor()  # self.envs.observation_spec()[0])
+        self.train    = args.train
+        self.n_steps  = args.steps_per_batch
+        self.discount = args.discount
+
+        self.preproc = Preprocessor()
         self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
+
+        print('\n### A2C Runner #######')
+        print(f'# agent = {self.agent}')
+        print(f'# train = {self.train}')
+        print(f'# n_steps = {self.n_steps}')
+        print(f'# discount = {self.discount}')
+        print('######################\n')
+
+        # TODO: we probably need to save this state during checkpoing
         self.states = agent.initial_state
         self.episode_counter = 1
         self.cumulative_score = 0.0
@@ -49,7 +59,7 @@ class A2CRunner(BaseRunner):
         rewards  = np.zeros(shapes, dtype=np.float32)
         dones    = np.zeros(shapes, dtype=np.float32)
         all_obs, all_actions = [], []
-        mb_states = self.states # save the initial states at the beginning of each mb.
+        mb_states = self.states # save the initial states at the beginning of each mb for later training.
 
         for n in range(self.n_steps):
             actions, values[n,:], states = self.agent.step(last_obs, self.states)

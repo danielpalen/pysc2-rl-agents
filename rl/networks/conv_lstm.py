@@ -9,6 +9,7 @@ from pysc2.lib import features
 
 from rl.common.pre_processing import is_spatial_action, NUM_FUNCTIONS, FLAT_FEATURES
 from rl.common.util import mask_unavailable_actions
+from rl.networks.util.cells import ConvLSTMCell
 
 
 class ConvLSTM():
@@ -19,6 +20,11 @@ class ConvLSTM():
     """
 
     def __init__(self, sess, ob_space, nbatch, nsteps, reuse=False, data_format='NCHW'):
+
+        # BUG: does not work with NCHW yet.
+        if data_format=='NCHW':
+            print('WARNING! NCHW not yet implemented for ConvLSTM. Switching to NHWC')
+        data_format='NHWC'
 
         def embed_obs(x, spec, embed_fn, name):
             feats = tf.split(x, len(spec), -1)
@@ -108,12 +114,15 @@ class ConvLSTM():
 
 
         nenvs = nbatch//nsteps
+        res = ob_space['screen'][1]
+        filters = 75
+        state_shape = (2, nenvs, res, res, filters)
 
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
         FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
         AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
-        STATES   = tf.placeholder(tf.float32, shape=(2, 1, 32, 32, 20), name='initial_state')
+        STATES  = tf.placeholder(tf.float32, shape=state_shape, name='initial_state')
 
         with tf.variable_scope('model', reuse=reuse):
 
@@ -127,51 +136,35 @@ class ConvLSTM():
             broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
             state_out     = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
-            # recurrent trajectory length?
-            #n_steps = 1  # TODO: pass this here!
-
             # [batch_size, traj_len, res, res, features]
             convLSTM_shape = tf.concat([[nenvs, nsteps],tf.shape(state_out)[1:]], axis=0)
+            convLSTM_inputs = tf.reshape(state_out, convLSTM_shape)
 
-            # [traj_len, batch_size, res, res, features]
-            convLSTM_inputs = tf.transpose(tf.reshape(state_out, convLSTM_shape), [1, 0, 2, 3, 4])
-
-            # TODO: maybe pass config here
-            convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=20, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
-
-            print('state_size', convLSTMCell.state_size)
-            #print('output_size', convLSTMCell.output_size)
-
+            convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=filters, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
             convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
                 convLSTMCell,
                 convLSTM_inputs,
-                #initial_state=STATES,
+                initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0],STATES[1]),
                 time_major=False,
                 dtype=tf.float32,
                 scope="dynamic_rnn"
             )
+            outputs = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
 
-            print('state_out', state_out)
-            print('convLST_shape', convLSTM_shape)
-            print('inputs', convLSTM_inputs)
-            print('outputs', convLSTM_outputs)
-            print('states',  convLSTM_state)
-
-            flat_out = flatten(convLSTM_outputs, scope='flat_out')
-            print('flat_out',  flat_out)
+            flat_out = flatten(outputs, scope='flat_out')
             fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
 
             value = fully_connected(fc, 1, activation_fn=None, scope='value')
             value = tf.reshape(value, [-1])
 
-            fn_out = non_spatial_output(fc, NUM_FUNCTIONS, 'fn_name')
+            fn_out = non_spatial_output(fc, channels=NUM_FUNCTIONS, name='fn_name')
 
             args_out = dict()
             for arg_type in actions.TYPES:
                 if is_spatial_action[arg_type]:
-                    arg_out = spatial_output(state_out, name=arg_type.name)
+                    arg_out = spatial_output(outputs, name=arg_type.name) # TODO: use something like convLSTM_outputs here
                 else:
-                    arg_out = non_spatial_output(fc, arg_type.sizes[0], name=arg_type.name)
+                    arg_out = non_spatial_output(fc, channels=arg_type.sizes[0], name=arg_type.name)
                 args_out[arg_type] = arg_out
 
             policy = (fn_out, args_out)
@@ -202,7 +195,7 @@ class ConvLSTM():
                 MINIMAP: obs['minimap'],
                 FLAT   : obs['flat'],
                 AV_ACTS: obs['available_actions'],
-                STATES  : state
+                STATES : state
             }
             return sess.run([action, value, convLSTM_state], feed_dict=feed_dict)
 
@@ -212,9 +205,9 @@ class ConvLSTM():
                 SCREEN : obs['screen'],
                 MINIMAP: obs['minimap'],
                 FLAT   : obs['flat'],
-                STATES  : state
+                STATES : state
             }
-            return sess.run([value], feed_dict=feed_dict)
+            return sess.run(value, feed_dict=feed_dict)
 
 
         self.SCREEN  = SCREEN
@@ -226,82 +219,4 @@ class ConvLSTM():
         self.value  = value
         self.step = step
         self.get_value = get_value
-        self.initial_state = np.zeros((2, 1, 32, 32, 20), dtype=np.float32) # TODO: figure out dimensions
-
-
-class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):
-    """
-
-    From: https://github.com/carlthome/tensorflow-convlstm-cell/blob/master/cell.py
-
-    A LSTM cell with convolutions instead of multiplications.
-    Reference:
-      Xingjian, S. H. I., et al. "Convolutional LSTM network: A machine learning approach for precipitation nowcasting." Advances in Neural Information Processing Systems. 2015.
-    """
-
-    def __init__(self, shape, filters, kernel, forget_bias=1.0, activation=tf.tanh, normalize=True, peephole=True, data_format='channels_last', reuse=None):
-        super(ConvLSTMCell, self).__init__(_reuse=reuse)
-        self._kernel = kernel
-        self._filters = filters
-        self._forget_bias = forget_bias
-        self._activation = activation
-        self._normalize = normalize
-        self._peephole = peephole
-        if data_format == 'channels_last':
-            self._size = tf.TensorShape(shape + [self._filters])
-            self._feature_axis = self._size.ndims
-            self._data_format = None
-        elif data_format == 'channels_first':
-            self._size = tf.TensorShape([self._filters] + shape)
-            self._feature_axis = 0
-            self._data_format = 'NC'
-        else:
-            raise ValueError('Unknown data_format')
-
-    @property
-    def state_size(self):
-        return tf.nn.rnn_cell.LSTMStateTuple(self._size, self._size)
-
-    @property
-    def output_size(self):
-        return self._size
-
-    def call(self, x, state):
-        c, h = state
-
-        x = tf.concat([x, h], axis=self._feature_axis)
-        n = x.shape[-1].value
-        m = 4 * self._filters if self._filters > 1 else 4
-        W = tf.get_variable('kernel', self._kernel + [n, m])
-        y = tf.nn.convolution(x, W, 'SAME', data_format=self._data_format)
-        if not self._normalize:
-            y += tf.get_variable('bias', [m],
-                                 initializer=tf.zeros_initializer())
-        j, i, f, o = tf.split(y, 4, axis=self._feature_axis)
-
-        if self._peephole:
-            i += tf.get_variable('W_ci', c.shape[1:]) * c
-            f += tf.get_variable('W_cf', c.shape[1:]) * c
-
-        if self._normalize:
-            j = tf.contrib.layers.layer_norm(j)
-            i = tf.contrib.layers.layer_norm(i)
-            f = tf.contrib.layers.layer_norm(f)
-
-        f = tf.sigmoid(f + self._forget_bias)
-        i = tf.sigmoid(i)
-        c = c * f + i * self._activation(j)
-
-        if self._peephole:
-            o += tf.get_variable('W_co', c.shape[1:]) * c
-
-        if self._normalize:
-            o = tf.contrib.layers.layer_norm(o)
-            c = tf.contrib.layers.layer_norm(c)
-
-        o = tf.sigmoid(o)
-        h = o * self._activation(c)
-
-        state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
-
-        return h, state
+        self.initial_state = np.zeros(state_shape, dtype=np.float32)

@@ -32,18 +32,38 @@ class FeudalRunner(BaseRunner):
         self.episode_counter = 1
         self.max_score = 0.0
         self.cummulative_score = 0.0
+        self.d #TODO: read from args
 
+        #TODO: set t % c
 
     def run_batch(self, train_summary):
 
+        last_obs = self.last_obs
+        shapes   = (self.n_steps, self.envs.n_envs)
+        values   = np.zeros(np.concatenate([[2], shapes]), dtype=np.float32) #first dim: manager values, second dim: worker values
+        rewards  = np.zeros(shapes, dtype=np.float32)
+        dones    = np.zeros(shapes, dtype=np.float32)
+        all_obs, all_actions = [], []
+        mb_states = self.states
+        goals = np.zeros(d, dtype=np.float32) #TODO: check for dx1
 
-        worker = None
-        manager = None
+        for n in range(self.n_steps):
+            actions, values[:,n,:], states, goals = self.agent.step(last_obs, self.states, goals)
+            actions = mask_unused_argument_samples(actions)
 
-        
+            all_obs.append(last_obs)
+            all_actions.append(actions)
+            pysc2_actions = actions_to_pysc2(actions, size=last_obs['screen'].shape[1:3])
+            obs_raw  = self.envs.step(pysc2_actions)
+            last_obs = self.preproc.preprocess_obs(obs_raw)
 
-        for n in range(self.nsteps):
-            actions, values, states = self.worker.step
+            for t in obs_raw:
+                if t.last():
+                    self.cumulative_score += self._summarize_episode(t)
+
+        next_values = self.agent.get_value(last_obs, states, goals)
+
+        #TODO: rest of runner
 
 
     def get_mean_score(self):

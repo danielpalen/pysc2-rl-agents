@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.contrib.layers import fully_connected, flatten, conv2d
+from tensorflow.contrib.rnn import BasicLSTMCell
 from tensorflow.contrib.distributions import Categorical
 
 from pysc2.lib import actions
@@ -106,13 +107,18 @@ class Feudal:
                 return tf.transpose(map2d, [0, 3, 1, 2])
             return map2d
 
+        d = 512 #TODO: get from args
+        k = 32 #TODO: get from args
+        c = None #TODO: get from args
+
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
         FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
         AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
 
-        W_STATES = None # TODO
-        GOAL = NONE # TODO
+        STATES = None # TODO
+        # GOAL = None # TODO
+        LAST_C_GOALS = tf.placeholder(tf.float32, shape=(d,c), name='last_c_goals') #TODO: cxd?
 
         with tf.variable_scope('model', reuse=reuse):
 
@@ -122,37 +128,47 @@ class Feudal:
 
             screen_out    = input_conv(from_nhwc(screen_emb), 'screen')
             minimap_out   = input_conv(from_nhwc(minimap_emb), 'minimap')
-
             broadcast_out = broadcast_along_channels(flat_emb, ob_space['screen'][1:3])
+
             z = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
 
-
-
-            with tf.variabl_scope('manager', reuse=reuse):
+            with tf.variable_scope('manager'):
                 # REVIEW: maybe we want to put some strided convolutions in here because flattening
                 # z gives a pretty big vector.
                 # Dimensionaliy reduction on z to get R^d vector.
-                s = fully_connected(flatten(z), 512, activation_fn=tf.nn.relu, scope="/s")
+                s = fully_connected(flatten(z), d, activation_fn=tf.nn.relu, scope="/s")
 
+                manager_cell = BasicLSTMCell(d, activation=tf.nn.relu)
+                g_hat, h_M = tf.nn.dynamic_rnn(
+                    manager_cell,
+                    s,
+                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0],STATES[1]), # TODO: pass correct hidden state
+                    time_major=False, #TODO
+                    dtype=tf.float32,
+                    scope="manager_lstm"
+                )
                 # LSTM in between
+                g = tf.nn.l2_normalize(g_hat)
+                g_hat_fc = fully_connected(g_hat, 256, activation_fn=tf.nn.relu)
+                manager_value = fully_connected(g_hat_fc, 1, activation_fn=None)
 
-                g = # Goal in R^d
-
-                # manage value function from LSTM output
-
-
-
-            with tf.variable_scope('worker', reuse=reuse):
+            with tf.variable_scope('worker'):
 
                 cut_g = tf.stop_gradient(g)
-                broadcast_g = broadcast_along_channels(cut_g, ob_space['screen'][1:3])
-                z_g = concat2DAlongChannel([z,broadcast_g])
+                cut_g = tf.expand_dims(cut_g, axis=1)
+
+                g_stack = tf.concat([LAST_C_GOALS, cut_g], axis=1)
+                last_c_g = g_stack[:, 1:]
+                g_sum = tf.reduce_sum(last_c_g, axis=1)
+                phi = tf.get_variable("phi", shape=(d, k))
+
+                w = tf.expand_dims(tf.matmul(g_sum, phi), axis=2)
+                broadcast_w = broadcast_along_channels(w, ob_space['screen'][1:3])
 
                 # TODO: make (dilated) ConvLSTM Cell
                 # TODO: what's the dimensions in batch_size??
                 convLSTM_shape = tf.concat([[nenvs, nsteps],tf.shape(state_out)[1:]], axis=0)
-
-                convLSTM_inputs = tf.reshape(z_g, convLSTM_shape)
+                convLSTM_inputs = tf.reshape(broadcast_w, convLSTM_shape)
 
                 convLSTMCell = ConvLSTMCell(shape=ob_space['screen'][1:3], filters=filters, kernel=[3, 3], reuse=reuse) # TODO: padding: same?
                 convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
@@ -164,13 +180,15 @@ class Feudal:
                     scope="dynamic_rnn"
                 )
                 # TODO: what's the dimensions in batch_size??
-                outputs = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
+                U = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
 
-                flat_out = flatten(outputs, scope='flat_out')
+                U_w = concat2DAlongChannel([U, broadcast_w])
+
+                flat_out = flatten(U_w, scope='flat_out')
                 fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
 
-                value = fully_connected(fc, 1, activation_fn=None, scope='value')
-                value = tf.reshape(value, [-1])
+                worker_value = fully_connected(fc, 1, activation_fn=None, scope='value')
+                worker_value = tf.reshape(value, [-1])
 
                 fn_out = non_spatial_output(fc, NUM_FUNCTIONS, 'fn_name')
 
@@ -183,9 +201,20 @@ class Feudal:
                     args_out[arg_type] = arg_out
 
                 policy = (fn_out, args_out)
+                value = (manager_value, worker_value)
 
-        def step(obs, state, goal, maks=None):
+        def step(obs, state, goals, maks=None):
             pass
+
+        def get_value(obs, state, goals, mask=None):
+            feed_dict = {
+                SCREEN          : obs['screen'],
+                MINIMAP         : obs['minimap'],
+                FLAT            : obs['flat'],
+                LAST_C_GOALS    : goals
+                STATES          : state
+            }
+            return sess.run(value, feed_dict=feed_dict)
 
 
         self.SCREEN  = SCREEN
@@ -194,7 +223,10 @@ class Feudal:
         self.AV_ACTS = AV_ACTS
 
         # TODO
-        self.manager_value = None
-        self.worker_value = None
+
+        self.get_value = get_value
+
+        #self.manager_value = manager_value
+        #self.worker_value = worker_value
 
         self.initial_states = None # will contain both manager and worker states.

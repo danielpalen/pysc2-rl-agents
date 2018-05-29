@@ -207,6 +207,9 @@ class Feudal:
             pass
 
         def get_value(obs, state, goals, mask=None):
+            """
+            Returns a tuple of manager and worker value.
+            """
             feed_dict = {
                 SCREEN          : obs['screen'],
                 MINIMAP         : obs['minimap'],

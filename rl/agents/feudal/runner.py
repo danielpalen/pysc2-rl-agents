@@ -21,9 +21,8 @@ class FeudalRunner(BaseRunner):
         self.summary_writer = summary_writer
 
         self.train = args.train
-        self.n_steps = args.steps_per_batch
-
         self.c = args.worker_steps
+        self.n_steps = 2*self.c + args.steps_per_batch
 
         print('\n### Feudal Runner ######')
 
@@ -45,10 +44,10 @@ class FeudalRunner(BaseRunner):
         dones    = np.zeros(shapes, dtype=np.float32)
         all_obs, all_actions = [], []
         mb_states = self.states
-        goals = np.zeros(d, dtype=np.float32) #TODO: check for dx1
+        goals = np.zeros((self.nsteps, self.envs.n_envs, d), dtype=np.float32) #TODO: check for dx1
 
         for n in range(self.n_steps):
-            actions, values[:,n,:], states, goals = self.agent.step(last_obs, self.states, goals)
+            actions, values[:,n,:], states, goals[n,:,:] = self.agent.step(last_obs, self.states, goals)
             actions = mask_unused_argument_samples(actions)
 
             all_obs.append(last_obs)
@@ -61,7 +60,7 @@ class FeudalRunner(BaseRunner):
                 if t.last():
                     self.cumulative_score += self._summarize_episode(t)
 
-        next_values = self.agent.get_value(last_obs, states, goals)
+        #next_values = self.agent.get_value(last_obs, states, goals)
 
         #TODO: rest of runner
 

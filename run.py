@@ -26,7 +26,7 @@ FLAGS = flags.FLAGS
 FLAGS(['run.py'])
 
 agents = {
-    'a2c': {
+    'a2c' : {
         'agent' : A2CAgent,
         'runner': A2CRunner,
         'policies' : {
@@ -35,7 +35,14 @@ agents = {
         }
     },
     # 'feudal' : {}
-    # 'ppo': {},
+    'ppo' : {
+        'agent' : PPOAgent,
+        'runner': PPORunner,
+        'policies' : {
+            'fully_conv' : FullyConv,
+            # 'conv_lstm' : ConvLSTM
+        }
+    },
 }
 
 args = SC2ArgumentParser().parse_args()

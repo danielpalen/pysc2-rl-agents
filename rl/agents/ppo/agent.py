@@ -152,7 +152,7 @@ class PPOAgent():
                 return _train_op, _loss, None
 
 
-        def save():
+        def save(path, step=None):
             os.makedirs(path, exist_ok=True)
             print("Saving agent to %s, step %d" % (path, sess.run(global_step)))
             ckpt_path = os.path.join(path, 'model.ckpt')

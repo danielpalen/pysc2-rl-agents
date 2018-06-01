@@ -259,9 +259,10 @@ class Feudal:
         self.MINIMAP = MINIMAP
         self.FLAT    = FLAT
         self.AV_ACTS = AV_ACTS
-
+        self.policy = policy
         # TODO
 
         self.step = step
+        self.value = value
         self.get_value = get_value
         self.initial_states = None # TODO: will contain both manager and worker states.

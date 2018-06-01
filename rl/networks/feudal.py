@@ -147,14 +147,15 @@ class Feudal:
                     dtype=tf.float32,
                     scope="manager_lstm"
                 )
-                # LSTM in between
-                g = tf.nn.l2_normalize(g_hat)
+                goal = tf.nn.l2_normalize(g_hat)
+
+                # Manger Value
                 g_hat_fc = fully_connected(g_hat, 256, activation_fn=tf.nn.relu)
                 manager_value = fully_connected(g_hat_fc, 1, activation_fn=None)
 
             with tf.variable_scope('worker'):
 
-                cut_g = tf.stop_gradient(g)
+                cut_g = tf.stop_gradient(goal)
                 cut_g = tf.expand_dims(cut_g, axis=1)
 
                 g_stack = tf.concat([LAST_C_GOALS, cut_g], axis=1)
@@ -203,8 +204,42 @@ class Feudal:
                 policy = (fn_out, args_out)
                 value = (manager_value, worker_value)
 
+
+        def sample_action(available_actions, policy):
+
+            def sample(probs):
+                dist = Categorical(probs=probs)
+                return dist.sample()
+
+            fn_pi, arg_pis = policy
+            fn_pi = mask_unavailable_actions(available_actions, fn_pi)
+            fn_samples = sample(fn_pi)
+
+            arg_samples = dict()
+            for arg_type, arg_pi in arg_pis.items():
+                arg_samples[arg_type] = sample(arg_pi)
+
+            return fn_samples, arg_samples
+
+        action = sample_action(AV_ACTS, policy)
+
+
         def step(obs, state, goals, maks=None):
-            pass
+            """
+            Receives observations, hidden states and goals at a specific timestep
+            and returns actions, values, new hidden states and goals.
+            """
+            feed_dict = {
+                SCREEN          : obs['screen'],
+                MINIMAP         : obs['minimap'],
+                FLAT            : obs['flat'],
+                AV_ACTS         : obs['available_actions'],
+                LAST_C_GOALS    : goals,
+                STATES          : state
+            }
+            a, v, s, g = sess.run([action, value, s, goal], feed_dict=feed_dict)
+            return a, v, None, s, g # TODO: return hidden states.
+
 
         def get_value(obs, state, goals, mask=None):
             """
@@ -227,9 +262,6 @@ class Feudal:
 
         # TODO
 
+        self.step = step
         self.get_value = get_value
-
-        #self.manager_value = manager_value
-        #self.worker_value = worker_value
-
-        self.initial_states = None # will contain both manager and worker states.
+        self.initial_states = None # TODO: will contain both manager and worker states.

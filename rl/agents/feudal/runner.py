@@ -73,7 +73,6 @@ class FeudalRunner(BaseRunner):
 
         next_values = self.agent.get_value(last_obs, states) #TODO: do we need this?
 
-        #TODO: rest of runner
         returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(rewards, dones, values, next_values, s, goals, self.discount, self.c)
 
         # TODO: maybe throw away first and lst c observations here.
@@ -109,7 +108,7 @@ class FeudalRunner(BaseRunner):
         return max_score
 
 
-def compute_returns_and_advantages(rewards, dones, values, next_values, states, goals, discount, c):
+def compute_returns_and_advantages(rewards, dones, values, next_values, s, goals, discount, c):
     # REVIEW: this function
     alpha = 0.5
 
@@ -120,9 +119,11 @@ def compute_returns_and_advantages(rewards, dones, values, next_values, states, 
     for t in range(c,c+T):
         sum_cos_dists = 0
         for i in range(1,c):
-            sum_cos_dists += cosine_similarity(states[t]-states[t-i] , goals[t-i])
+            sum_cos_dists += cosine_similarity(s[t]-s[t-i] , goals[t-i])
         r_i[i] = 1/c * sum_cos_dists
 
+
+    #TODO: this part cant be correct i think
     # Returns
     returns = np.zeros((c+1, nenvs))
     returns_intr = np.zeros((c+1, nenvs))

@@ -12,6 +12,11 @@ class FeudalAgent():
         checkpoint_path = args.ckpt_path
         max_gradient_norm = 1.0
 
+        #TODO: check for correct format
+        d=args.d
+        k=args.k
+        c=args.c
+
         print('\n### Feudal Agent #######')
         print(f'# policy = {policy}')
         print(f'# value_loss_weight = {value_loss_weight}')
@@ -38,12 +43,6 @@ class FeudalAgent():
             'available_actions' : [None, ch['available_actions']]
         }
 
-        #read feudal parameters from args
-        #TODO: check for correct format
-        d=args.d if args.d else 512
-        k=args.k if args.k else 32
-        c=args.c if args.c else 10
-
         step_model  = policy(sess, ob_space=ob_space, nbatch=nenvs, d=d, k=k, c=c, nsteps=1, reuse=None, data_format=network_data_format)
         train_model = policy(sess, ob_space=ob_space, nbatch=nbatch, d=d, k=k, c=c, nsteps=nsteps, reuse=True, data_format=network_data_format)
 
@@ -58,7 +57,7 @@ class FeudalAgent():
         ADV_W  = tf.placeholder(tf.float32, [None], name='adv_worker')
         R      = tf.placeholder(tf.float32, [None], name='returns')
         RI     = tf.placeholder(tf.float32, [None], name='returns_intrinsic')
-        S_DIFF = tf.placeholder(tf.float32, [None], name='s_diff')
+        S_DIFF = tf.placeholder(tf.float32, [None], name='s_diff') #TODO: How does this work?
         GOAL   = tf.placeholder(tf.float32, [None], name='goal')
 
         # define loss
@@ -126,11 +125,12 @@ class FeudalAgent():
                 ADV_W              : adv_w
                 R                  : returns
                 RI                 : returns_intr
-                S_DIFF             : s
+                S_DIFF             : s  #REVIEW: s != s_diff 
                 GOAL               : goals
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
 
+            #TODO: do we need this for states[0] as well as states[1]?
             if states is not None:
                 feed_dict.update({train_model.STATES : states})
 

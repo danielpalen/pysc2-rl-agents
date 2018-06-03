@@ -33,7 +33,7 @@ class FeudalRunner(BaseRunner):
         print(f'# discount = {self.discount}')
         print('######################\n')
 
-        self.states = None # Holds the managers and workers hidden states
+        self.states = (None, None) # Holds the managers and workers hidden states
 
         self.episode_counter = 1
         self.max_score = 0.0
@@ -71,7 +71,7 @@ class FeudalRunner(BaseRunner):
                 if t.last():
                     self.cumulative_score += self._summarize_episode(t)
 
-        next_values = self.agent.get_value(last_obs, states)
+        next_values = self.agent.get_value(last_obs, states) #TODO: do we need this?
 
         #TODO: rest of runner
         returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(rewards, dones, values, next_values, s, goals, self.discount, self.c)
@@ -125,7 +125,7 @@ def compute_returns_and_advantages(rewards, dones, values, next_values, states, 
 
     # Returns
     returns = np.zeros((c+1, nenvs))
-    returns_intr = no.zeros((c+1, nenvs))
+    returns_intr = np.zeros((c+1, nenvs))
     returns[-1,:] = next_values
     for t in range(c,c+T):
         returns[t,:] = rewards[t,:]  + discount * returns[t+1,:] * (1-dones[t,:])

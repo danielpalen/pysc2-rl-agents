@@ -15,7 +15,7 @@ from rl.networks.util.cells import ConvLSTMCell
 class Feudal:
     """Feudal Networks network implementation based on https://arxiv.org/pdf/1703.01161.pdf"""
 
-    def __init__(self, sess, ob_space, nbatch, nsteps, reuse=False, data_format='NCHW'):
+    def __init__(self, sess, ob_space, nbatch, nsteps, d, k, c, reuse=False, data_format='NCHW'):
 
         # BUG: does not work with NCHW yet.
         if data_format=='NCHW':
@@ -107,16 +107,12 @@ class Feudal:
                 return tf.transpose(map2d, [0, 3, 1, 2])
             return map2d
 
-        d = 512 #TODO: get from args
-        k = 32 #TODO: get from args
-        c = None #TODO: get from args
-
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
         FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
         AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
 
-        STATES = None # TODO
+        STATES = (None, None) # TODO: Tuple of manager and worker RNN states
         # GOAL = None # TODO
         LAST_C_GOALS = tf.placeholder(tf.float32, shape=(d,c), name='last_c_goals') #TODO: cxd?
 
@@ -142,7 +138,7 @@ class Feudal:
                 g_hat, h_M = tf.nn.dynamic_rnn(
                     manager_cell,
                     s,
-                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0],STATES[1]), # TODO: pass correct hidden state
+                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0][0], STATES[0][1]), # TODO: pass correct hidden state
                     time_major=False, #TODO
                     dtype=tf.float32,
                     scope="manager_lstm"
@@ -175,7 +171,7 @@ class Feudal:
                 convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
                     convLSTMCell,
                     convLSTM_inputs,
-                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0],STATES[1]), # TODO: pass correct hidden state
+                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0][0], STATES[0][1]), # TODO: pass correct hidden state
                     time_major=False,
                     dtype=tf.float32,
                     scope="dynamic_rnn"

@@ -25,7 +25,9 @@ class FeudalAgent():
         print('######################\n')
 
         tf.reset_default_graph()
-        sess = tf.Session()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.Session(config=config)
 
         nbatch = nenvs*nsteps
         ch = get_input_channels()
@@ -36,8 +38,14 @@ class FeudalAgent():
             'available_actions' : [None, ch['available_actions']]
         }
 
-        step_model  = policy(...)
-        train_model = policy(...)
+        #read feudal parameters from args
+        #TODO: check for correct format
+        d=args.d if args.d else 512
+        k=args.k if args.k else 32
+        c=args.c if args.c else 10
+
+        step_model  = policy(sess, ob_space=ob_space, nbatch=nenvs, d=d, k=k, c=c, nsteps=1, reuse=None, data_format=network_data_format)
+        train_model = policy(sess, ob_space=ob_space, nbatch=nbatch, d=d, k=k, c=c, nsteps=nsteps, reuse=True, data_format=network_data_format)
 
         # Define placeholders
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
@@ -107,7 +115,35 @@ class FeudalAgent():
 
 
         def train(obs, states, actions, returns, returns_intr, adv_m, adv_w, s, goals, summary=False):
-            pass
+            feed_dict = {
+                train_model.SCREEN : obs['screen'],
+                train_model.MINIMAP: obs['minimap'],
+                train_model.FLAT   : obs['flat'],
+                train_model.AV_ACTS: obs['available_actions'],
+                ACTIONS[0]         : actions[0]
+                RETURNS            : returns,
+                ADV_M              : adv_m,
+                ADV_W              : adv_w
+                R                  : returns
+                RI                 : returns_intr
+                S_DIFF             : s
+                GOAL               : goals
+            }
+            feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
+
+            if states is not None:
+                feed_dict.update({train_model.STATES : states})
+
+            agent_step = self.train_step
+            self.train_step += 1
+
+            if summary:
+                _,_step,_loss,_summary = sess.run([train_op, global_step, loss, train_summary_op], feed_dict=feed_dict)
+                return _step, _loss, _summary
+            else:
+                _train_op,_loss = sess.run([train_op, loss], feed_dict=feed_dict)
+                return _train_op, _loss, None
+
 
 
         def save(path, step=None):

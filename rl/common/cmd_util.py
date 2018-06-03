@@ -85,6 +85,15 @@ class SC2ArgumentParser():
                             help='weight of value function loss')
 
 
+        #Feudal Args
+        parser.add_argument('--d', type=int, default=512,
+                            help='manager dimension')
+        parser.add_argument('--k', type=int, default=32,
+                            help='size of goal-embedding space')
+        parser.add_argument('--c', type=int, default=10,
+                            help='number of cores')
+
+
         def parse_args():
             # TODO write args to config file and store together with summaries (https://pypi.python.org/pypi/ConfigArgParse)
             args = parser.parse_args()

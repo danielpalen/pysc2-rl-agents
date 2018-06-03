@@ -22,8 +22,10 @@ class FeudalRunner(BaseRunner):
         self.summary_writer = summary_writer
 
         self.train = args.train
-        self.c = args.worker_steps
-        self.n_steps = 2*self.c + args.steps_per_batch
+        self.c = args.c
+        self.d = args.d
+        self.T = args.steps_per_batch #T is the length of the actualy trajectory
+        self.n_steps = 2 * self.c + T
         self.discount = args.discount
 
         print('\n### Feudal Runner #######')
@@ -38,9 +40,10 @@ class FeudalRunner(BaseRunner):
         self.episode_counter = 1
         self.max_score = 0.0
         self.cummulative_score = 0.0
-        self.d #TODO: read from args
 
-        #TODO: set t % c
+        if(T%c != 0):
+            self.T = int(np.round(t/c) * c)
+            print("T hast been set to a value which is a multiple of c: T=" ,self.T)
 
     def run_batch(self, train_summary):
 
@@ -50,9 +53,9 @@ class FeudalRunner(BaseRunner):
         rewards  = np.zeros(shapes, dtype=np.float32)
         dones    = np.zeros(shapes, dtype=np.float32)
         all_obs, all_actions = [], []
-        mb_states = self.states
-        s     = np.zeros((self.nsteps, self.envs.n_envs, d), dtype=np.float32)
-        goals = np.zeros((self.nsteps, self.envs.n_envs, d), dtype=np.float32) #TODO: check for dx1
+        mb_states = self.states #first dim: manager values, second dim: worker values
+        s     = np.zeros((self.nsteps, self.envs.n_envs, self.d), dtype=np.float32)
+        goals = np.zeros((self.nsteps, self.envs.n_envs, self.d), dtype=np.float32)
 
         for n in range(self.n_steps):
             actions, values[:,n,:], states, s[n,:,:], goals[n,:,:] = self.agent.step(last_obs, self.states, goals)
@@ -113,7 +116,7 @@ def compute_returns_and_advantages(rewards, dones, values, next_values, s, goals
     alpha = 0.5
 
     # Intrinsic rewards
-    T = rewards.shape[0]-2*c
+    T = self.T
     nenvs = rewards.shape[1]
     r_i = np.zeros((T,nenvs))
     for t in range(c,c+T):

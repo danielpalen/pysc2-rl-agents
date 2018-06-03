@@ -219,6 +219,7 @@ class Feudal:
 
         action = sample_action(AV_ACTS, policy)
 
+        #TODO:recheck inputs of feed_dicts
 
         def step(obs, state, goals, maks=None):
             """
@@ -255,9 +256,9 @@ class Feudal:
         self.MINIMAP = MINIMAP
         self.FLAT    = FLAT
         self.AV_ACTS = AV_ACTS
-        self.policy = policy
-        # TODO
 
+        #TODO: What else?
+        self.policy = policy
         self.step = step
         self.value = value
         self.get_value = get_value

@@ -13,6 +13,7 @@ class FeudalAgent():
         max_gradient_norm = 1.0
 
         #TODO: check for correct format
+        #TODO: rename those?
         d=args.d
         k=args.k
         c=args.c
@@ -113,7 +114,9 @@ class FeudalAgent():
             sess.run(tf.variables_initializer(variables))
 
 
-        def train(obs, states, actions, returns, returns_intr, adv_m, adv_w, s, goals, summary=False):
+        def train(obs, states, actions, returns, returns_intr, adv_m, adv_w, goals, summary=False):
+
+            #REVIEW: Do we need to put S_DIFF into the network
             feed_dict = {
                 train_model.SCREEN : obs['screen'],
                 train_model.MINIMAP: obs['minimap'],
@@ -123,9 +126,7 @@ class FeudalAgent():
                 RETURNS            : returns,
                 ADV_M              : adv_m,
                 ADV_W              : adv_w
-                R                  : returns
                 RI                 : returns_intr
-                S_DIFF             : s  #REVIEW: s != s_diff 
                 GOAL               : goals
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })

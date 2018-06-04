@@ -1,6 +1,6 @@
 # Adapted from
 # https://github.com/pekaalto/sc2aibot/blob/master/common/multienv.py
-
+import os
 from multiprocessing import Process, Pipe
 
 from pysc2.env import sc2_env, available_actions_printer

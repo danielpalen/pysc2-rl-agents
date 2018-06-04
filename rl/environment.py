@@ -92,7 +92,7 @@ class SubprocVecEnv:
             p.start()
             # Scheduling the new processes on a range of specified CPUs. Unfortunately
             # this only works for our own processees and not StarCraftII itself...
-            #os.system(f"taskset -cp {','.join([str(x) for x in range(55, 56)])} {p.pid}")
+            os.system(f"taskset -cp {','.join([str(x) for x in range(45, 56)])} {p.pid}")
 
         self.n_envs = n_envs
 

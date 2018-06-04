@@ -9,8 +9,11 @@ import tensorflow as tf
 
 from rl.agents.a2c.runner import A2CRunner
 from rl.agents.a2c.agent import A2CAgent
+from rl.agents.feudal.runner import FeudalRunner
+from rl.agents.feudal.agent import FeudalAgent
 from rl.agents.ppo.runner import PPORunner
 from rl.agents.ppo.agent import PPOAgent
+from rl.networks.feudal import Feudal
 from rl.networks.fully_conv import FullyConv
 from rl.networks.conv_lstm import ConvLSTM
 from rl.environment import SubprocVecEnv, make_sc2env, SingleEnv
@@ -34,7 +37,13 @@ agents = {
             'conv_lstm' : ConvLSTM
         }
     },
-    # 'feudal' : {}
+    'feudal' : {
+        'agent' : FeudalAgent,
+        'runner' : FeudalRunner,
+        'policies' : {
+            'feudal' : Feudal
+        }
+    },
     'ppo' : {
         'agent' : PPOAgent,
         'runner': PPORunner,

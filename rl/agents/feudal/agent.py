@@ -1,3 +1,10 @@
+import os
+import tensorflow as tf
+from tensorflow.contrib import layers
+
+from rl.common.pre_processing import get_input_channels
+from rl.common.util import compute_entropy, safe_log, safe_div, mask_unavailable_actions
+
 class FeudalAgent():
 
     def __init__(self, policy, args):
@@ -44,8 +51,8 @@ class FeudalAgent():
             'available_actions' : [None, ch['available_actions']]
         }
 
-        step_model  = policy(sess, ob_space=ob_space, nbatch=nenvs, d=d, k=k, c=c, nsteps=1, reuse=None, data_format=network_data_format)
-        train_model = policy(sess, ob_space=ob_space, nbatch=nbatch, d=d, k=k, c=c, nsteps=nsteps, reuse=True, data_format=network_data_format)
+        step_model  = policy(sess, ob_space=ob_space, nbatch=nenvs, d=d, k=k, c=c, nsteps=1, reuse=None)
+        train_model = policy(sess, ob_space=ob_space, nbatch=nbatch, d=d, k=k, c=c, nsteps=nsteps, reuse=True)
 
         # Define placeholders
         fn_id = tf.placeholder(tf.int32, [None], name='fn_id')
@@ -58,28 +65,37 @@ class FeudalAgent():
         ADV_W  = tf.placeholder(tf.float32, [None], name='adv_worker')
         R      = tf.placeholder(tf.float32, [None], name='returns')
         RI     = tf.placeholder(tf.float32, [None], name='returns_intrinsic')
-        S_DIFF = tf.placeholder(tf.float32, [None], name='s_diff') #TODO: How does this work?
-        GOAL   = tf.placeholder(tf.float32, [None], name='goal')
+        S_DIFF = tf.placeholder(tf.float32, [None,d], name='s_diff')
+        #GOAL   = tf.placeholder(tf.float32, [None,d], name='goal')
 
         # define loss
         # - manager loss
-        den = tf.matmul(tf.expand_dims(S_DIFF,axis=0),tf.expand_dims(GOAL,axis=1))
-        num = tf.norm(S_DIFF)*tf.norm(GOALS)+1e-8
+        den = tf.reduce_sum(tf.multiply(S_DIFF,train_model.LAST_C_GOALS[:,-1,:]),axis=1)
+        num = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)+1e-8
         cos_similarity = den/num
-        manager_loss = ADV_M * cos_similarity
+        manager_loss = -tf.reduce_mean(ADV_M * cos_similarity)
         manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0]))
         # - worker loss
         log_probs = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
-        worker_loss = ADV_W * log_probs
+        worker_loss = -tf.reduce_mean(ADV_W * log_probs)
         worker_value_loss = tf.reduce_mean(tf.square(R-train_model.value[1]))
         # add coeficients
-        entropy     = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
+        entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
 
         loss = manager_loss \
             + manager_value_loss \
             + worker_loss \
-            + worker_value_loss
+            + worker_value_loss \
             + entropy
+
+
+        print('manager_loss',manager_loss)
+        print('manager_value_loss',manager_value_loss)
+        print('log_probs',log_probs)
+        print('worker_loss',worker_loss)
+        print('worker_value_loss',worker_value_loss)
+        print('entropy',entropy)
+        print('loss',loss)
 
         # Define optimizer
         global_step = tf.Variable(0, trainable=False)
@@ -114,26 +130,25 @@ class FeudalAgent():
             sess.run(tf.variables_initializer(variables))
 
 
-        def train(obs, states, actions, returns, returns_intr, adv_m, adv_w, goals, summary=False):
-
-            #REVIEW: Do we need to put S_DIFF into the network
+        def train(obs, states, actions, returns, returns_intr, adv_m, adv_w, s_diff, goals, summary=False):
             feed_dict = {
                 train_model.SCREEN : obs['screen'],
                 train_model.MINIMAP: obs['minimap'],
                 train_model.FLAT   : obs['flat'],
                 train_model.AV_ACTS: obs['available_actions'],
-                ACTIONS[0]         : actions[0]
-                RETURNS            : returns,
+                ACTIONS[0]         : actions[0],
+                R                  : returns,
+                RI                 : returns_intr,
                 ADV_M              : adv_m,
-                ADV_W              : adv_w
-                RI                 : returns_intr
-                GOAL               : goals
+                ADV_W              : adv_w,
+                S_DIFF             : s_diff,
+                train_model.LAST_C_GOALS : goals
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
 
             #TODO: do we need this for states[0] as well as states[1]?
-            if states is not None:
-                feed_dict.update({train_model.STATES : states})
+            # if states is not None:
+            #     feed_dict.update({train_model.STATES : states})
 
             agent_step = self.train_step
             self.train_step += 1
@@ -162,6 +177,7 @@ class FeudalAgent():
         self.step = step_model.step
         self.get_value = step_model.get_value
         self.save = save
+        self.initial_state = step_model.initial_state
         self.get_global_step = get_global_step
 
 

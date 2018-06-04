@@ -2,7 +2,12 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import tensorflow as tf
 
+from pysc2.lib.actions import FunctionCall, FUNCTIONS
+
 from rl.agents.runner import BaseRunner
+from rl.common.pre_processing import Preprocessor
+from rl.common.pre_processing import is_spatial_action, stack_ndarray_dicts
+from rl.common.util import mask_unused_argument_samples, flatten_first_dims, flatten_first_dims_dict
 
 class FeudalRunner(BaseRunner):
 
@@ -25,8 +30,11 @@ class FeudalRunner(BaseRunner):
         self.c = args.c
         self.d = args.d
         self.T = args.steps_per_batch #T is the length of the actualy trajectory
-        self.n_steps = 2 * self.c + T
+        self.n_steps = 2 * self.c + self.T
         self.discount = args.discount
+
+        self.preproc = Preprocessor()
+        self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
 
         print('\n### Feudal Runner #######')
         print(f'# agent = {self.agent}')
@@ -35,15 +43,13 @@ class FeudalRunner(BaseRunner):
         print(f'# discount = {self.discount}')
         print('######################\n')
 
-        self.states = (None, None) # Holds the managers and workers hidden states
+        self.states = agent.initial_state # Holds the managers and workers hidden states
+        self.last_c_goals = np.zeros((self.envs.n_envs,self.c,self.d))
 
         self.episode_counter = 1
         self.max_score = 0.0
-        self.cummulative_score = 0.0
+        self.cumulative_score = 0.0
 
-        if(T%c != 0):
-            self.T = int(np.round(t/c) * c)
-            print("T hast been set to a value which is a multiple of c: T=" ,self.T)
 
     def run_batch(self, train_summary):
 
@@ -54,38 +60,44 @@ class FeudalRunner(BaseRunner):
         dones    = np.zeros(shapes, dtype=np.float32)
         all_obs, all_actions = [], []
         mb_states = self.states #first dim: manager values, second dim: worker values
-        s     = np.zeros((self.nsteps, self.envs.n_envs, self.d), dtype=np.float32)
-        goals = np.zeros((self.nsteps, self.envs.n_envs, self.d), dtype=np.float32)
+        s = np.zeros((self.n_steps, self.envs.n_envs, self.d), dtype=np.float32)
+        mb_last_c_goals = np.zeros((self.n_steps, self.envs.n_envs, self.c, self.d), dtype=np.float32)
 
         for n in range(self.n_steps):
-            actions, values[:,n,:], states, s[n,:,:], goals[n,:,:] = self.agent.step(last_obs, self.states, goals)
+            actions, values[:,n,:], states, s[n,:,:], self.last_c_goals = self.agent.step(last_obs, self.states, self.last_c_goals)
             actions = mask_unused_argument_samples(actions)
 
             all_obs.append(last_obs)
             all_actions.append(actions)
+            mb_last_c_goals[n,:,:] = self.last_c_goals
 
             pysc2_actions = actions_to_pysc2(actions, size=last_obs['screen'].shape[1:3])
             obs_raw  = self.envs.step(pysc2_actions)
             last_obs = self.preproc.preprocess_obs(obs_raw)
-            rewards[n,:], dones[n,:] = zip(*[(t.reward,r.last()) for t in obs_raw()])
+            rewards[n,:], dones[n,:] = zip(*[(t.reward,t.last()) for t in obs_raw])
             self.states = states
 
             for t in obs_raw:
                 if t.last():
                     self.cumulative_score += self._summarize_episode(t)
 
-        next_values = self.agent.get_value(last_obs, states) #TODO: do we need this?
+        #next_values = self.agent.get_value(last_obs, states, self.last_c_goals)
 
-        returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(rewards, dones, values, next_values, s, goals, self.discount, self.c)
-
-        # TODO: maybe throw away first and lst c observations here.
-        actions = stack_and_flatten_actions(all_actions)
-        obs     = flatten_first_dims_dict(stack_ndarray_dicts(all_obs))
+        returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(
+            rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c
+        )
+        s_diff = compute_sdiff(s, self.c, self.T, self.envs.n_envs, self.d)
+        # last_c_goals = compute_last_c_goals(goals, self.envs.n_envs, self.T, self.c, self.d)
+        actions = stack_and_flatten_actions(all_actions[self.c:self.c+self.T])
+        obs = stack_ndarray_dicts(all_obs)
+        obs = { k:obs[k][self.c:self.c+self.T] for k in obs }
+        obs = flatten_first_dims_dict(obs)
         returns = flatten_first_dims(returns)
         returns_intr = flatten_first_dims(returns_intr)
-        adv_m    = flatten_first_dims(adv_m)
-        adv_w    = flatten_first_dims(adv_w)
-
+        adv_m = flatten_first_dims(adv_m)
+        adv_w = flatten_first_dims(adv_w)
+        s_diff = flatten_first_dims(s_diff)
+        mb_last_c_goals = flatten_first_dims(mb_last_c_goals[self.c:self.c+self.T])
         self.last_obs = last_obs
 
         if self.train:
@@ -95,8 +107,8 @@ class FeudalRunner(BaseRunner):
                 actions,
                 returns, returns_intr,
                 adv_m, adv_w,
-                s,
-                goals,
+                s_diff,
+                mb_last_c_goals,
                 summary=train_summary
             )
         else:
@@ -104,41 +116,60 @@ class FeudalRunner(BaseRunner):
 
 
     def get_mean_score(self):
-        return cummulative_score / episode_counter
+        return cumulative_score / episode_counter
 
 
     def get_max_score(self):
         return max_score
 
 
-def compute_returns_and_advantages(rewards, dones, values, next_values, s, goals, discount, c):
-    # REVIEW: this function
+def compute_sdiff(s, c, T, nenvs, d):
+    s_diff = np.zeros((T,nenvs,d))
+    for t in range(T):
+        s_diff[t,:,:] = s[t+2*c,:,:] - s[t+c,:,:]
+    return s_diff
+
+
+# def compute_last_c_goals(goals, nenvs, T, c, d):
+#     last_c_g = np.zeros((T,nenvs,c,d))
+#     # goal (nsteps, nenvs, d)
+#     for t in range(c,c+T):
+#         last_c_g[t-c] = np.transpose(goals[t-c:t], (1,0,2))
+#     return last_c_g
+
+
+def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T, nenvs, c):
     alpha = 0.5
 
+    # print('s', s.shape)
+    # print('goals', goals.shape)
+
     # Intrinsic rewards
-    T = self.T
-    nenvs = rewards.shape[1]
-    r_i = np.zeros((T,nenvs))
-    for t in range(c,c+T):
+    r_i = np.zeros((T+1,nenvs))
+    for t in range(c,c+T+1):
         sum_cos_dists = 0
-        for i in range(1,c):
-            sum_cos_dists += cosine_similarity(s[t]-s[t-i] , goals[t-i])
-        r_i[i] = 1/c * sum_cos_dists
+        for env in range(nenvs):
+            for i in range(1,c):
+                _s,_g = s[t,env]-s[t-i,env], goals[t-i,env]
+                den = np.expand_dims(_s,axis=0)@np.expand_dims(_g,axis=1)
+                num = np.linalg.norm(_s)*np.linalg.norm(_g)+1e-8
+                sum_cos_dists += den/num
+            r_i[t-c,env] = 1/c * sum_cos_dists
+    # print('r_i', r_i.shape)
 
-
-    #TODO: this part cant be correct i think
     # Returns
-    returns = np.zeros((c+1, nenvs))
-    returns_intr = np.zeros((c+1, nenvs))
-    returns[-1,:] = next_values
-    for t in range(c,c+T):
-        returns[t,:] = rewards[t,:]  + discount * returns[t+1,:] * (1-dones[t,:])
-    for t in range(c,c+T-1):
-        returns_intr[t,:] = r_i[t,:] + discount * returns_intr[t+1,:] * (1-dones[t,:])
+    returns = np.zeros((T+1, nenvs))
+    returns_intr = np.zeros((T+1, nenvs))
+    returns[-1,:] = values[0,c+T]
+    returns_intr[-1,:] = r_i[-1]
+    for t in reversed(range(T)):
+        returns[t,:] = rewards[t+c,:] + discount * returns[t+1,:] * (1-dones[t+c,:])
+        returns_intr[t,:] = r_i[t,:] + discount * returns_intr[t+1,:] * (1-dones[t+c,:])
     returns = returns[:-1,:]
-    adv_m = returns - values[0]
-    adv_w = returns + alpha * returns_intr - values[1]
-    return returns, returns_intr, r_i, adv_m, adv_w
+    returns_intr = returns_intr[:-1,:]
+    adv_m = returns - values[0,c:c+T,:]
+    adv_w = returns + alpha * returns_intr - values[1,c:c+T,:]
+    return returns, returns_intr, adv_m, adv_w
 
 
 def actions_to_pysc2(actions, size):

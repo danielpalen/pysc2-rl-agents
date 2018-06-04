@@ -116,11 +116,11 @@ class FeudalRunner(BaseRunner):
 
 
     def get_mean_score(self):
-        return cumulative_score / episode_counter
+        return self.cumulative_score / self.episode_counter
 
 
     def get_max_score(self):
-        return max_score
+        return self.max_score
 
 
     def _summarize_episode(self, timestep):

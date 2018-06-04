@@ -157,7 +157,7 @@ class Feudal:
                 )
                 g_hat = tf.reshape(g_hat, shape=(nenvs*nsteps,d))
                 print('g_hat', g_hat, g_hat.shape)
-                goal = tf.nn.l2_normalize(g_hat)
+                goal = tf.nn.l2_normalize(g_hat, dim=1)
 
                 # Manger Value
                 g_hat_fc = fully_connected(g_hat, 256, activation_fn=tf.nn.relu)

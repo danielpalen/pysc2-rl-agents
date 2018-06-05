@@ -83,10 +83,10 @@ class FeudalAgent():
         entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
 
         loss = manager_loss \
-            + manager_value_loss \
-            + worker_loss \
-            + worker_value_loss \
-            + entropy
+             + worker_loss \
+             + value_loss_weight * manager_value_loss \
+             + value_loss_weight * worker_value_loss \
+             + entropy_weight * entropy
 
 
         print('manager_loss',manager_loss)

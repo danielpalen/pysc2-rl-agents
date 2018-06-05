@@ -110,18 +110,18 @@ class Feudal:
         nenvs = nbatch//nsteps
         res = ob_space['screen'][1]
         filters = 64
-        state_shape = (2, nenvs, res, res, filters)
+        m_state_shape = (2, nenvs, d) # TODO: update dims
+        w_state_shape = (2, nenvs, res, res, filters) # TODO: update dims
 
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
         FLAT    = tf.placeholder(tf.float32, shape=ob_space['flat'],    name='input_flat')
         AV_ACTS = tf.placeholder(tf.float32, shape=ob_space['available_actions'], name='available_actions')
 
-        STATES = (
-            tf.placeholder(tf.float32, shape=state_shape, name='initial_state_m'),
-            tf.placeholder(tf.float32, shape=state_shape, name='initial_state_w')
-        ) # TODO: Tuple of manager and worker RNN states
-        # GOAL = None # TODO
+        STATES = {
+            'manager' : tf.placeholder(tf.float32, shape=m_state_shape, name='initial_state_m'),
+            'worker'  : tf.placeholder(tf.float32, shape=w_state_shape, name='initial_state_w')
+        }
         LAST_C_GOALS = tf.placeholder(tf.float32, shape=(None,c,d), name='last_c_goals') #TODO: cxd?
 
         with tf.variable_scope('model', reuse=reuse):
@@ -143,20 +143,21 @@ class Feudal:
                 # z gives a pretty big vector.
                 # Dimensionaliy reduction on z to get R^d vector.
                 s = fully_connected(flatten(z), d, activation_fn=tf.nn.relu, scope="/s")
-                print('s', s, s.shape)
+                #print('s', s, s.shape)
                 manager_LSTM_input = tf.reshape(s, shape=(nenvs,nsteps,d))
-                print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)
+                #print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)
                 manager_cell = BasicLSTMCell(d, activation=tf.nn.relu)
                 g_hat, h_M = tf.nn.dynamic_rnn(
                     manager_cell,
                     manager_LSTM_input,
-                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0][0], STATES[0][1]), # TODO: pass correct hidden state
-                    time_major=False, #TODO
+                    initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES['manager'][0], STATES['manager'][1]),
+                    time_major=False,
                     dtype=tf.float32,
                     scope="manager_lstm"
                 )
+                print(h_M)
                 g_hat = tf.reshape(g_hat, shape=(nenvs*nsteps,d))
-                print('g_hat', g_hat, g_hat.shape)
+                #print('g_hat', g_hat, g_hat.shape)
                 goal = tf.nn.l2_normalize(g_hat, dim=1)
 
                 # Manger Value
@@ -174,30 +175,31 @@ class Feudal:
                 convLSTM_outputs, convLSTM_state = tf.nn.dynamic_rnn(
                     convLSTMCell,
                     convLSTM_inputs,
-                    # initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES[0][0], STATES[0][1]), # TODO: pass correct hidden state
+                    initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES['worker'][0], STATES['worker'][1]),
                     time_major=False,
                     dtype=tf.float32,
-                    scope="dynamic_rnn"
+                    scope="worker_lstm"
                 )
+                print(convLSTM_state)
                 # TODO: what's the dimensions in batch_size??
                 U = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
                 cut_g = tf.stop_gradient(goal)
                 cut_g = tf.expand_dims(cut_g, axis=1)
-                print('LAST_C_GOALS',LAST_C_GOALS)
-                print('cut_g', cut_g)
+                #print('LAST_C_GOALS',LAST_C_GOALS)
+                #print('cut_g', cut_g)
                 g_stack = tf.concat([LAST_C_GOALS, cut_g], axis=1)
-                print('g_stack', g_stack)
+                #print('g_stack', g_stack)
                 last_c_g = g_stack[:,1:,:]
-                print('last_c_g', last_c_g)
+                #print('last_c_g', last_c_g)
                 g_sum = tf.reduce_sum(last_c_g, axis=1)
                 phi = tf.get_variable("phi", shape=(d, k))
                 w = tf.matmul(g_sum, phi)
-                print('w', w)
-                print('screen', ob_space['screen'][1:3])
+                #print('w', w)
+                #print('screen', ob_space['screen'][1:3])
                 broadcast_w = broadcast_along_channels(w, ob_space['screen'][1:3])
                 U_w = concat2DAlongChannel([U, broadcast_w])
-                print('bc w', broadcast_w)
-                print('U_w', U_w)
+                #print('bc w', broadcast_w)
+                #print('U_w', U_w)
 
                 flat_out = flatten(U_w, scope='flat_out')
                 fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
@@ -245,15 +247,17 @@ class Feudal:
             and returns actions, values, new hidden states and goals.
             """
             feed_dict = {
-                SCREEN          : obs['screen'],
-                MINIMAP         : obs['minimap'],
-                FLAT            : obs['flat'],
-                AV_ACTS         : obs['available_actions'],
-                LAST_C_GOALS    : last_goals,
-                #STATES          : state
+                SCREEN           : obs['screen'],
+                MINIMAP          : obs['minimap'],
+                FLAT             : obs['flat'],
+                AV_ACTS          : obs['available_actions'],
+                LAST_C_GOALS     : last_goals,
+                STATES['manager']: state['manager'],
+                STATES['worker'] : state['worker']
             }
             a, v, _h_M, _h_W, _s, g = sess.run([action, value, h_M, convLSTM_state, s, last_c_g], feed_dict=feed_dict)
-            return a, v, (_h_M,_h_W), _s, g # TODO: return hidden states.
+            state = {'manager':_h_M,'worker':_h_W}
+            return a, v, state, _s, g
 
 
         def get_value(obs, state, last_goals, mask=None):
@@ -261,11 +265,12 @@ class Feudal:
             Returns a tuple of manager and worker value.
             """
             feed_dict = {
-                SCREEN          : obs['screen'],
-                MINIMAP         : obs['minimap'],
-                FLAT            : obs['flat'],
-                LAST_C_GOALS    : last_goals,
-                #STATES          : state
+                SCREEN           : obs['screen'],
+                MINIMAP          : obs['minimap'],
+                FLAT             : obs['flat'],
+                LAST_C_GOALS     : last_goals,
+                STATES['manager']: state['manager'],
+                STATES['worker'] : state['worker']
             }
             return sess.run(value, feed_dict=feed_dict)
 
@@ -282,4 +287,7 @@ class Feudal:
         self.step = step
         self.value = value
         self.get_value = get_value
-        self.initial_state = np.zeros(state_shape, dtype=np.float32) # TODO: will contain both manager and worker states.
+        self.initial_state = {
+            'manager' : np.zeros(m_state_shape, dtype=np.float32),
+            'worker'  : np.zeros(w_state_shape, dtype=np.float32)
+        }

@@ -142,13 +142,11 @@ class FeudalAgent():
                 ADV_M              : adv_m,
                 ADV_W              : adv_w,
                 S_DIFF             : s_diff,
-                train_model.LAST_C_GOALS : goals
+                train_model.LAST_C_GOALS : goals,
+                train_model.STATES['manager']: states['manager'],
+                train_model.STATES['worker']: states['worker']
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
-
-            #TODO: do we need this for states[0] as well as states[1]?
-            # if states is not None:
-            #     feed_dict.update({train_model.STATES : states})
 
             agent_step = self.train_step
             self.train_step += 1

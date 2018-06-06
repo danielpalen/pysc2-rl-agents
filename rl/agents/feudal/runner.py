@@ -83,6 +83,7 @@ class FeudalRunner(BaseRunner):
 
         #next_values = self.agent.get_value(last_obs, states, self.last_c_goals)
 
+
         returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(
             rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c
         )
@@ -183,6 +184,7 @@ def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T
     returns_intr = returns_intr[:-1,:]
     adv_m = returns - values[0,c:c+T,:]
     adv_w = returns + alpha * returns_intr - values[1,c:c+T,:]
+
     return returns, returns_intr, adv_m, adv_w
 
 

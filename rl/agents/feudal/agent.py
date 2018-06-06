@@ -86,7 +86,7 @@ class FeudalAgent():
              + worker_loss \
              + value_loss_weight * manager_value_loss \
              + value_loss_weight * worker_value_loss \
-             + entropy_weight * entropy
+             - entropy_weight * entropy
 
 
         print('manager_loss',manager_loss)

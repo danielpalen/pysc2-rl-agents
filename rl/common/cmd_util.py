@@ -1,5 +1,11 @@
 import os
 import argparse
+import json
+
+class Namespace(object):
+    """Helper class for restoring command line args that have been saved to json."""
+    def __init__(self, adict):
+        self.__dict__.update(adict)
 
 class SC2ArgumentParser():
 
@@ -20,6 +26,8 @@ class SC2ArgumentParser():
                             help='gpu device id')
         parser.add_argument('--nhwc', action='store_true',
                             help='train fullyConv in NCHW mode')
+        parser.add_argument('--resume', action='store_true',
+                            help='continue experiment with given name.')
         parser.add_argument('--ow', action='store_true',
                             help='overwrite existing experiments (if --train=True)')
         parser.add_argument('--seed', type=int, default=123,
@@ -101,4 +109,18 @@ class SC2ArgumentParser():
             return args
 
 
+        def save(args, path):
+            with open(os.path.join(path,'args.json'), 'w') as fp:
+                print(f'Saved Args to {os.path.join(path,"args.json")}')
+                json.dump(vars(args), fp, sort_keys=True, indent=4)
+
+
+        def restore(path):
+            with open(os.path.join(path,'args.json'), 'r') as fp:
+                print('Restored Args')
+                return Namespace(json.load(fp))
+
+
         self.parse_args = parse_args
+        self.restore = restore
+        self.save = save

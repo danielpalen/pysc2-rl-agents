@@ -33,6 +33,7 @@ agents = {
         'agent' : A2CAgent,
         'runner': A2CRunner,
         'policies' : {
+            'default' : FullyConv,
             'fully_conv' : FullyConv,
             'conv_lstm' : ConvLSTM
         }
@@ -41,6 +42,7 @@ agents = {
         'agent' : FeudalAgent,
         'runner' : FeudalRunner,
         'policies' : {
+            'default' : Feudal,
             'feudal' : Feudal
         }
     },
@@ -48,6 +50,7 @@ agents = {
         'agent' : PPOAgent,
         'runner': PPORunner,
         'policies' : {
+            'default' : FullyConv,
             'fully_conv' : FullyConv,
             # 'conv_lstm' : ConvLSTM
         }

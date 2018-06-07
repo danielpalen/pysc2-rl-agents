@@ -12,7 +12,7 @@ class SC2ArgumentParser():
         # General Args
         parser.add_argument('--agent', type=str, default='a2c',
                             help='which agent to use')
-        parser.add_argument('--policy', type=str, default='fully_conv',
+        parser.add_argument('--policy', type=str, default='default',
                             help='which policy the agent shoul use.'),
         parser.add_argument('--eval', action='store_true',
                             help='if false, episode scores are evaluated')

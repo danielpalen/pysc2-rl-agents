@@ -110,6 +110,7 @@ class SC2ArgumentParser():
 
 
         def save(args, path):
+            os.makedirs(path, exist_ok=True)
             with open(os.path.join(path,'args.json'), 'w') as fp:
                 print(f'Saved Args to {os.path.join(path,"args.json")}')
                 json.dump(vars(args), fp, sort_keys=True, indent=4)

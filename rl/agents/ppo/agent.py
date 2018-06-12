@@ -25,6 +25,7 @@ class PPOAgent():
         nsteps = args.steps_per_batch
         res = args.res
         checkpoint_path = args.ckpt_path
+        summary_writer = args.summary_writer
         clip = 0.2
 
         print('\n### PPO Agent #######')
@@ -98,6 +99,7 @@ class PPOAgent():
         tf.summary.scalar('rl/value', tf.reduce_mean(train_model.value))
         tf.summary.scalar('rl/returns', tf.reduce_mean(RETURNS))
         tf.summary.scalar('rl/advs', tf.reduce_mean(ADVS))
+        summary_writer.add_graph(sess.graph)
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         saver = tf.train.Saver(variables, max_to_keep=max_to_keep)
         train_summaries  = tf.get_collection(tf.GraphKeys.SUMMARIES)

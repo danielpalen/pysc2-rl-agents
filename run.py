@@ -112,6 +112,7 @@ def main():
     envs = SubprocVecEnv(env_fns)
 
     summary_writer = tf.summary.FileWriter(summary_path)
+    args.summary_writer = summary_writer
 
     network_data_format = 'NHWC' if args.nhwc else 'NCHW'
 

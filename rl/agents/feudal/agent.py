@@ -17,6 +17,7 @@ class FeudalAgent():
         nsteps = args.steps_per_batch
         res = args.res
         checkpoint_path = args.ckpt_path
+        summary_writer = args.summary_writer
         max_gradient_norm = 1.0
 
         #TODO: check for correct format
@@ -70,15 +71,15 @@ class FeudalAgent():
 
         # define loss
         # - manager loss
-        den = tf.reduce_sum(tf.multiply(S_DIFF,train_model.LAST_C_GOALS[:,-1,:]),axis=1)
-        num = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)+1e-8
-        cos_similarity = den/num
+        num = tf.reduce_sum(tf.multiply(S_DIFF,train_model.LAST_C_GOALS[:,-1,:]),axis=1)
+        den = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)
+        cos_similarity = safe_div(num, den, "manager_cos")
         manager_loss = -tf.reduce_mean(ADV_M * cos_similarity)
-        manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0]))
+        manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0])/2)
         # - worker loss
         log_probs = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
         worker_loss = -tf.reduce_mean(ADV_W * log_probs)
-        worker_value_loss = tf.reduce_mean(tf.square(R-train_model.value[1]))
+        worker_value_loss = tf.reduce_mean(tf.square(R-train_model.value[1])/2)
         # add coeficients
         entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
 
@@ -114,6 +115,7 @@ class FeudalAgent():
         tf.summary.scalar('rl/returns_intr', tf.reduce_mean(RI))
         tf.summary.scalar('rl/adv_m', tf.reduce_mean(ADV_M))
         tf.summary.scalar('rl/adv_w', tf.reduce_mean(ADV_W))
+        summary_writer.add_graph(sess.graph)
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         saver = tf.train.Saver(variables, max_to_keep=max_to_keep)
         train_summaries  = tf.get_collection(tf.GraphKeys.SUMMARIES)

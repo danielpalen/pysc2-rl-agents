@@ -33,6 +33,7 @@ agents = {
         'agent' : A2CAgent,
         'runner': A2CRunner,
         'policies' : {
+            'default' : FullyConv,
             'fully_conv' : FullyConv,
             'conv_lstm' : ConvLSTM
         }
@@ -41,6 +42,7 @@ agents = {
         'agent' : FeudalAgent,
         'runner' : FeudalRunner,
         'policies' : {
+            'default' : Feudal,
             'feudal' : Feudal
         }
     },
@@ -48,18 +50,25 @@ agents = {
         'agent' : PPOAgent,
         'runner': PPORunner,
         'policies' : {
+            'default' : FullyConv,
             'fully_conv' : FullyConv,
             # 'conv_lstm' : ConvLSTM
         }
     },
 }
 
-args = SC2ArgumentParser().parse_args()
+args_parser = SC2ArgumentParser()
+args = args_parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 args.ckpt_path = os.path.join(args.save_dir, args.experiment_id)
 summary_type = 'train' if args.train else 'eval'
 summary_path = os.path.join(args.summary_dir, args.experiment_id, summary_type)
 
+if args.resume:
+    args = args_parser.restore(os.path.join(args.summary_dir, args.experiment_id))
+    args.ow = False
+else:
+    args_parser.save(args,os.path.join(args.summary_dir, args.experiment_id))
 
 def main():
 
@@ -103,6 +112,7 @@ def main():
     envs = SubprocVecEnv(env_fns)
 
     summary_writer = tf.summary.FileWriter(summary_path)
+    args.summary_writer = summary_writer
 
     network_data_format = 'NHWC' if args.nhwc else 'NCHW'
 

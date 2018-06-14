@@ -1,5 +1,11 @@
 import os
 import argparse
+import json
+
+class Namespace(object):
+    """Helper class for restoring command line args that have been saved to json."""
+    def __init__(self, adict):
+        self.__dict__.update(adict)
 
 class SC2ArgumentParser():
 
@@ -12,7 +18,7 @@ class SC2ArgumentParser():
         # General Args
         parser.add_argument('--agent', type=str, default='a2c',
                             help='which agent to use')
-        parser.add_argument('--policy', type=str, default='fully_conv',
+        parser.add_argument('--policy', type=str, default='default',
                             help='which policy the agent shoul use.'),
         parser.add_argument('--eval', action='store_true',
                             help='if false, episode scores are evaluated')
@@ -20,6 +26,8 @@ class SC2ArgumentParser():
                             help='gpu device id')
         parser.add_argument('--nhwc', action='store_true',
                             help='train fullyConv in NCHW mode')
+        parser.add_argument('--resume', action='store_true',
+                            help='continue experiment with given name.')
         parser.add_argument('--ow', action='store_true',
                             help='overwrite existing experiments (if --train=True)')
         parser.add_argument('--seed', type=int, default=123,
@@ -91,7 +99,7 @@ class SC2ArgumentParser():
         parser.add_argument('--k', type=int, default=32,
                             help='size of goal-embedding space')
         parser.add_argument('--c', type=int, default=10,
-                            help='number of cores')
+                            help='prediction horizon')
 
 
         def parse_args():
@@ -101,4 +109,19 @@ class SC2ArgumentParser():
             return args
 
 
+        def save(args, path):
+            os.makedirs(path, exist_ok=True)
+            with open(os.path.join(path,'args.json'), 'w') as fp:
+                print(f'Saved Args to {os.path.join(path,"args.json")}')
+                json.dump(vars(args), fp, sort_keys=True, indent=4)
+
+
+        def restore(path):
+            with open(os.path.join(path,'args.json'), 'r') as fp:
+                print('Restored Args')
+                return Namespace(json.load(fp))
+
+
         self.parse_args = parse_args
+        self.restore = restore
+        self.save = save

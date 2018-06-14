@@ -74,11 +74,11 @@ class FeudalAgent():
         num = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)+1e-8
         cos_similarity = den/num
         manager_loss = -tf.reduce_mean(ADV_M * cos_similarity)
-        manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0]))
+        manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0])/2)
         # - worker loss
         log_probs = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
         worker_loss = -tf.reduce_mean(ADV_W * log_probs)
-        worker_value_loss = tf.reduce_mean(tf.square(R-train_model.value[1]))
+        worker_value_loss = tf.reduce_mean(tf.square(R-train_model.value[1])/2)
         # add coeficients
         entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
 
@@ -86,7 +86,7 @@ class FeudalAgent():
              + worker_loss \
              + value_loss_weight * manager_value_loss \
              + value_loss_weight * worker_value_loss \
-             + entropy_weight * entropy
+             - entropy_weight * entropy
 
 
         print('manager_loss',manager_loss)

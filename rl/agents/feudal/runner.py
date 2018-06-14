@@ -166,10 +166,11 @@ def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T
         for env in range(nenvs):
             for i in range(1,c):
                 _s,_g = s[t,env]-s[t-i,env], goals[t-i,env]
-                num = np.expand_dims(_s,axis=0)@np.expand_dims(_g,axis=1)
+                num = np.squeeze(np.expand_dims(_s,axis=0)@np.expand_dims(_g,axis=1))
                 den = np.linalg.norm(_s)*np.linalg.norm(_g)
                 print("num", num)
                 print("den", den)
+                print("res", np.divide(num, den, out=np.zeros_like(num), where=den!=0))
                 sum_cos_dists += np.divide(num, den, out=np.zeros_like(num), where=den!=0)
             r_i[t-c,env] = 1/c * sum_cos_dists
     # print('r_i', r_i.shape)

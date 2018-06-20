@@ -75,24 +75,23 @@ class FeudalAgent():
         num = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)+1e-8
         cos_similarity = den/num
         manager_loss = -tf.reduce_mean(ADV_M * cos_similarity)
-        manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0]))
+        manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0])) / 2
         # - worker loss
         log_probs = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
         worker_loss = -tf.reduce_mean(ADV_W * log_probs)
-        worker_value_loss = tf.reduce_mean(tf.square(R-train_model.value[1]))
-        # add coeficients
-        entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
+        worker_value_loss = tf.reduce_mean(tf.square(R+0.5*RI-train_model.value[1])) / 2
 
+        entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
         loss = manager_loss \
              + worker_loss \
              + value_loss_weight * manager_value_loss \
              + value_loss_weight * worker_value_loss \
-             + entropy_weight * entropy
+             - entropy_weight * entropy
 
 
+        print('log_probs',log_probs)
         print('manager_loss',manager_loss)
         print('manager_value_loss',manager_value_loss)
-        print('log_probs',log_probs)
         print('worker_loss',worker_loss)
         print('worker_value_loss',worker_value_loss)
         print('entropy',entropy)
@@ -115,6 +114,8 @@ class FeudalAgent():
         tf.summary.scalar('rl/returns_intr', tf.reduce_mean(RI))
         tf.summary.scalar('rl/adv_m', tf.reduce_mean(ADV_M))
         tf.summary.scalar('rl/adv_w', tf.reduce_mean(ADV_W))
+        tf.summary.scalar('rl/value_m', tf.reduce_mean(train_model.value[0]))
+        tf.summary.scalar('rl/value_w', tf.reduce_mean(train_model.value[1]))
         summary_writer.add_graph(sess.graph)
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         saver = tf.train.Saver(variables, max_to_keep=max_to_keep)

@@ -162,7 +162,7 @@ class Feudal:
 
                 # Manger Value
                 g_hat_fc = fully_connected(g_hat, 256, activation_fn=tf.nn.relu)
-                manager_value = fully_connected(g_hat_fc, 1, activation_fn=None)
+                manager_value = fully_connected(g_hat_fc, 1, activation_fn=None, scope="value")
                 manager_value = tf.reshape(manager_value, [-1])
 
             with tf.variable_scope('worker'):

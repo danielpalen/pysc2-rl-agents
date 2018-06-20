@@ -99,7 +99,7 @@ class SC2ArgumentParser():
         parser.add_argument('--k', type=int, default=32,
                             help='size of goal-embedding space')
         parser.add_argument('--c', type=int, default=10,
-                            help='number of cores')
+                            help='prediction horizon')
 
 
         def parse_args():

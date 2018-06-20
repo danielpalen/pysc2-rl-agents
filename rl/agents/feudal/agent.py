@@ -71,9 +71,9 @@ class FeudalAgent():
 
         # define loss
         # - manager loss
-        den = tf.reduce_sum(tf.multiply(S_DIFF,train_model.LAST_C_GOALS[:,-1,:]),axis=1)
-        num = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)+1e-8
-        cos_similarity = den/num
+        num = tf.reduce_sum(tf.multiply(S_DIFF,train_model.LAST_C_GOALS[:,-1,:]),axis=1)
+        den = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)
+        cos_similarity = safe_div(num, den, "manager_cos")
         manager_loss = -tf.reduce_mean(ADV_M * cos_similarity)
         manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0])) / 2
         # - worker loss

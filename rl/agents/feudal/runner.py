@@ -83,6 +83,7 @@ class FeudalRunner(BaseRunner):
 
         #next_values = self.agent.get_value(last_obs, states, self.last_c_goals)
 
+
         returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(
             rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c
         )
@@ -165,9 +166,12 @@ def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T
         for env in range(nenvs):
             for i in range(1,c):
                 _s,_g = s[t,env]-s[t-i,env], goals[t-i,env]
-                den = np.expand_dims(_s,axis=0)@np.expand_dims(_g,axis=1)
-                num = np.linalg.norm(_s)*np.linalg.norm(_g)+1e-8
-                sum_cos_dists += den/num
+                num = np.squeeze(np.expand_dims(_s,axis=0)@np.expand_dims(_g,axis=1))
+                den = np.linalg.norm(_s)*np.linalg.norm(_g)
+                print("num", num)
+                print("den", den)
+                print("res", np.divide(num, den, out=np.zeros_like(num), where=den!=0))
+                sum_cos_dists += np.divide(num, den, out=np.zeros_like(num), where=den!=0)
             r_i[t-c,env] = 1/c * sum_cos_dists
     # print('r_i', r_i.shape)
 
@@ -183,6 +187,7 @@ def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T
     returns_intr = returns_intr[:-1,:]
     adv_m = returns - values[0,c:c+T,:]
     adv_w = returns + alpha * returns_intr - values[1,c:c+T,:]
+
     return returns, returns_intr, adv_m, adv_w
 
 

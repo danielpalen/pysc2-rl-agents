@@ -112,6 +112,8 @@ class FeudalAgent():
         tf.summary.scalar('loss/worker_value', worker_value_loss)
         tf.summary.scalar('rl/returns', tf.reduce_mean(R))
         tf.summary.scalar('rl/returns_intr', tf.reduce_mean(RI))
+        tf.summary.scalar('rl/goal', tf.reduce_mean(train_model.LAST_C_GOALS[:,-1,:]))
+        tf.summary.scalar('rl/sdiff', tf.reduce_mean(S_DIFF))
         tf.summary.scalar('rl/adv_m', tf.reduce_mean(ADV_M))
         tf.summary.scalar('rl/adv_w', tf.reduce_mean(ADV_W))
         tf.summary.scalar('rl/value_m', tf.reduce_mean(train_model.value[0]))

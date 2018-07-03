@@ -110,8 +110,9 @@ class Feudal:
         nenvs = nbatch//nsteps
         res = ob_space['screen'][1]
         filters = 64
-        m_state_shape = (2, nenvs, d) # TODO: update dims
-        w_state_shape = (2, nenvs, res, res, filters) # TODO: update dims
+        ncores = c
+        m_state_shape = (2, nenvs, ncores, d)
+        w_state_shape = (2, nenvs, res, res, filters)
 
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
@@ -122,7 +123,7 @@ class Feudal:
             'manager' : tf.placeholder(tf.float32, shape=m_state_shape, name='initial_state_m'),
             'worker'  : tf.placeholder(tf.float32, shape=w_state_shape, name='initial_state_w')
         }
-        LAST_C_GOALS = tf.placeholder(tf.float32, shape=(None,c,d), name='last_c_goals') #TODO: cxd?
+        LAST_C_GOALS = tf.placeholder(tf.float32, shape=(None,c,d), name='last_c_goals')
 
         with tf.variable_scope('model', reuse=reuse):
 
@@ -147,15 +148,19 @@ class Feudal:
                 manager_LSTM_input = tf.reshape(s, shape=(nenvs,nsteps,d))
                 #print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)
                 manager_cell = BasicLSTMCell(d, activation=tf.nn.relu)
-                g_hat, h_M = tf.nn.dynamic_rnn(
+                _, h_M = tf.nn.dynamic_rnn(
                     manager_cell,
                     manager_LSTM_input,
-                    initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES['manager'][0], STATES['manager'][1]),
+                    initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES['manager'][0,:,0,:], STATES['manager'][1,:,0,:]),
                     time_major=False,
                     dtype=tf.float32,
                     scope="manager_lstm"
                 )
-                print(h_M)
+                dilated_state = tf.concat([STATES['manager'][:,:,1:,:], tf.expand_dims(h_M, axis=2)], axis=2)
+
+                print(dilated_state)
+
+                g_hat = tf.reduce_mean(dilated_state[0], axis=2)
                 g_hat = tf.reshape(g_hat, shape=(nenvs*nsteps,d))
                 #print('g_hat', g_hat, g_hat.shape)
                 goal = tf.nn.l2_normalize(g_hat, dim=1)
@@ -255,7 +260,7 @@ class Feudal:
                 STATES['manager']: state['manager'],
                 STATES['worker'] : state['worker']
             }
-            a, v, _h_M, _h_W, _s, g = sess.run([action, value, h_M, convLSTM_state, s, last_c_g], feed_dict=feed_dict)
+            a, v, _h_M, _h_W, _s, g = sess.run([action, value, dilated_state, convLSTM_state, s, last_c_g], feed_dict=feed_dict)
             state = {'manager':_h_M,'worker':_h_W}
             return a, v, state, _s, g
 
@@ -282,7 +287,6 @@ class Feudal:
         self.LAST_C_GOALS = LAST_C_GOALS
         self.STATES = STATES
 
-        #TODO: What else?
         self.policy = policy
         self.step = step
         self.value = value

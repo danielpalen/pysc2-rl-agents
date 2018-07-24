@@ -135,7 +135,7 @@ class FeudalAgent():
             sess.run(tf.variables_initializer(variables))
 
 
-        def train(obs, states, actions, returns, returns_intr, adv_m, adv_w, s_diff, goals, summary=False):
+        def train(obs, states, actions, returns, returns_intr, adv_m, adv_w, s_diff, goals, m_out, summary=False):
             feed_dict = {
                 train_model.SCREEN : obs['screen'],
                 train_model.MINIMAP: obs['minimap'],
@@ -149,7 +149,8 @@ class FeudalAgent():
                 S_DIFF             : s_diff,
                 train_model.LAST_C_GOALS : goals,
                 train_model.STATES['manager']: states['manager'],
-                train_model.STATES['worker']: states['worker']
+                train_model.STATES['worker']: states['worker'],
+                train_model.LC_MANAGER_OUTPUTS: m_out
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
 

@@ -113,6 +113,7 @@ class Feudal:
         ncores = c
         m_state_shape = (2, nenvs, ncores, d)
         w_state_shape = (2, nenvs, res, res, filters)
+        lc_shape = (None, c, d)
 
         SCREEN  = tf.placeholder(tf.float32, shape=ob_space['screen'],  name='input_screen')
         MINIMAP = tf.placeholder(tf.float32, shape=ob_space['minimap'], name='input_minimap')
@@ -123,7 +124,8 @@ class Feudal:
             'manager' : tf.placeholder(tf.float32, shape=m_state_shape, name='initial_state_m'),
             'worker'  : tf.placeholder(tf.float32, shape=w_state_shape, name='initial_state_w')
         }
-        LAST_C_GOALS = tf.placeholder(tf.float32, shape=(None,c,d), name='last_c_goals')
+        LAST_C_GOALS = tf.placeholder(tf.float32, shape=lc_shape, name='last_c_goals')
+        LC_MANAGER_OUTPUTS = tf.placeholder(tf.float32, shape=lc_shape, name='lc_manager_outputs')
 
         with tf.variable_scope('model', reuse=reuse):
 
@@ -149,7 +151,7 @@ class Feudal:
                 #print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)
                 manager_cell = BasicLSTMCell(d, activation=tf.nn.relu)
                 print("state input shape: ", STATES['manager'][0,:,0,:])
-                g_hat, h_M = tf.nn.dynamic_rnn(
+                g_, h_M = tf.nn.dynamic_rnn(
                     manager_cell,
                     manager_LSTM_input,
                     initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES['manager'][0,:,0,:], STATES['manager'][1,:,0,:]),
@@ -158,7 +160,14 @@ class Feudal:
                     scope="manager_lstm"
                 )
 
+                print(tf.expand_dims(h_M, axis=2))
+                #print("g_", g_)
                 dilated_state = tf.concat([STATES['manager'][:,:,1:,:], tf.expand_dims(h_M, axis=2)], axis=2)
+                #print("dilated state", dilated_state)
+                dilated_outs = tf.concat([LC_MANAGER_OUTPUTS[:, 1:, :], tf.reshape(g_, (nenvs*nsteps, 1, d))], axis = 1)
+                #print("dilated outs", dilated_outs)
+                g_hat = tf.reduce_sum(dilated_outs, axis=1)
+                #print("g_hat", g_hat)
                 g_hat = tf.reshape(g_hat, shape=(nenvs*nsteps,d))
                 #print('g_hat', g_hat, g_hat.shape)
                 goal = tf.nn.l2_normalize(g_hat, dim=1)
@@ -244,7 +253,7 @@ class Feudal:
 
         #TODO:recheck inputs of feed_dicts
 
-        def step(obs, state, last_goals, maks=None):
+        def step(obs, state, last_goals, m_out, maks=None):
             """
             Receives observations, hidden states and goals at a specific timestep
             and returns actions, values, new hidden states and goals.
@@ -256,14 +265,15 @@ class Feudal:
                 AV_ACTS          : obs['available_actions'],
                 LAST_C_GOALS     : last_goals,
                 STATES['manager']: state['manager'],
-                STATES['worker'] : state['worker']
+                STATES['worker'] : state['worker'],
+                LC_MANAGER_OUTPUTS: m_out
             }
-            a, v, _h_M, _h_W, _s, g = sess.run([action, value, dilated_state, convLSTM_state, s, last_c_g], feed_dict=feed_dict)
+            a, v, _h_M, _h_W, _s, g, m_o = sess.run([action, value, dilated_state, convLSTM_state, s, last_c_g, dilated_outs], feed_dict=feed_dict)
             state = {'manager':_h_M,'worker':_h_W}
-            return a, v, state, _s, g
+            return a, v, state, _s, g, m_o
 
 
-        def get_value(obs, state, last_goals, mask=None):
+        def get_value(obs, state, last_goals, m_out, mask=None):
             """
             Returns a tuple of manager and worker value.
             """
@@ -273,7 +283,8 @@ class Feudal:
                 FLAT             : obs['flat'],
                 LAST_C_GOALS     : last_goals,
                 STATES['manager']: state['manager'],
-                STATES['worker'] : state['worker']
+                STATES['worker'] : state['worker'],
+                LC_MANAGER_OUTPUTS: m_out
             }
             return sess.run(value, feed_dict=feed_dict)
 
@@ -284,6 +295,7 @@ class Feudal:
         self.AV_ACTS = AV_ACTS
         self.LAST_C_GOALS = LAST_C_GOALS
         self.STATES = STATES
+        self.LC_MANAGER_OUTPUTS = LC_MANAGER_OUTPUTS
 
         self.policy = policy
         self.step = step

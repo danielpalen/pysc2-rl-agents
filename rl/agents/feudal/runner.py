@@ -44,7 +44,8 @@ class FeudalRunner(BaseRunner):
         print('######################\n')
 
         self.states = agent.initial_state # Holds the managers and workers hidden states
-        self.last_c_goals = np.zeros((self.envs.n_envs,self.c,self.d))
+        self.last_c_goals =         np.zeros((self.envs.n_envs,self.c,self.d))
+        self.lc_manager_outputs =   np.zeros((self.envs.n_envs,self.c,self.d))
 
         self.episode_counter = 1
         self.max_score = 0.0
@@ -62,15 +63,16 @@ class FeudalRunner(BaseRunner):
         mb_states = self.states #first dim: manager values, second dim: worker values
         s = np.zeros((self.n_steps, self.envs.n_envs, self.d), dtype=np.float32)
         mb_last_c_goals = np.zeros((self.n_steps, self.envs.n_envs, self.c, self.d), dtype=np.float32)
+        mb_last_mo = np.zeros((self.n_steps, self.envs.n_envs, self.c, self.d), dtype=np.float32)
 
         for n in range(self.n_steps):
-            actions, values[:,n,:], states, s[n,:,:], self.last_c_goals = self.agent.step(last_obs, self.states, self.last_c_goals)
+            actions, values[:,n,:], states, s[n,:,:], self.last_c_goals, self.lc_manager_outputs = self.agent.step(last_obs, self.states, self.last_c_goals, self.lc_manager_outputs)
             actions = mask_unused_argument_samples(actions)
 
             all_obs.append(last_obs)
             all_actions.append(actions)
-            mb_last_c_goals[n,:,:] = self.last_c_goals
-
+            mb_last_c_goals[n,:,:,:] = self.last_c_goals
+            mb_last_mo[n,:,:,:] = self.lc_manager_outputs
             pysc2_actions = actions_to_pysc2(actions, size=last_obs['screen'].shape[1:3])
             obs_raw  = self.envs.step(pysc2_actions)
             last_obs = self.preproc.preprocess_obs(obs_raw)
@@ -80,9 +82,6 @@ class FeudalRunner(BaseRunner):
             for t in obs_raw:
                 if t.last():
                     self.cumulative_score += self._summarize_episode(t)
-
-        #next_values = self.agent.get_value(last_obs, states, self.last_c_goals)
-
 
         returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(
             rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c
@@ -99,6 +98,7 @@ class FeudalRunner(BaseRunner):
         adv_w = flatten_first_dims(adv_w)
         s_diff = flatten_first_dims(s_diff)
         mb_last_c_goals = flatten_first_dims(mb_last_c_goals[self.c:self.c+self.T])
+        prep_lc_mo = flatten_first_dims(mb_last_mo[self.c:self.c+self.T])
         self.last_obs = last_obs
 
         if self.train:
@@ -110,6 +110,7 @@ class FeudalRunner(BaseRunner):
                 adv_m, adv_w,
                 s_diff,
                 mb_last_c_goals,
+                prep_lc_mo,
                 summary=train_summary
             )
         else:

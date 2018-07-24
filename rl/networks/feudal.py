@@ -148,7 +148,7 @@ class Feudal:
                 manager_LSTM_input = tf.reshape(s, shape=(nenvs,nsteps,d))
                 #print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)
                 manager_cell = BasicLSTMCell(d, activation=tf.nn.relu)
-                _, h_M = tf.nn.dynamic_rnn(
+                g__, h_M = tf.nn.dynamic_rnn(
                     manager_cell,
                     manager_LSTM_input,
                     initial_state=tf.nn.rnn_cell.LSTMStateTuple(STATES['manager'][0,:,0,:], STATES['manager'][1,:,0,:]),
@@ -156,11 +156,17 @@ class Feudal:
                     dtype=tf.float32,
                     scope="manager_lstm"
                 )
+                print("#################")
+                print("g_hat", g__)
+                print("h_M", h_M)
+
+                print("#################")
+
                 dilated_state = tf.concat([STATES['manager'][:,:,1:,:], tf.expand_dims(h_M, axis=2)], axis=2)
+                print("dilated state", dilated_state)
 
-                print(dilated_state)
-
-                g_hat = tf.reduce_mean(dilated_state[0], axis=2)
+                g_hat = tf.reduce_mean(dilated_state[0], axis=1)
+                print("reduced", g_hat)
                 g_hat = tf.reshape(g_hat, shape=(nenvs*nsteps,d))
                 #print('g_hat', g_hat, g_hat.shape)
                 goal = tf.nn.l2_normalize(g_hat, dim=1)

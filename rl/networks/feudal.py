@@ -148,6 +148,7 @@ class Feudal:
                 manager_LSTM_input = tf.reshape(s, shape=(nenvs,nsteps,d))
                 #print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)
                 manager_cell = BasicLSTMCell(d, activation=tf.nn.relu)
+                print("state input shape: ", STATES['manager'][0,:,0,:])
                 g__, h_M = tf.nn.dynamic_rnn(
                     manager_cell,
                     manager_LSTM_input,

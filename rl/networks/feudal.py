@@ -157,10 +157,6 @@ class Feudal:
                     dtype=tf.float32,
                     scope="manager_lstm"
                 )
-                print("#################")
-                print("h_M", h_M)
-
-                print("#################")
 
                 dilated_state = tf.concat([STATES['manager'][:,:,1:,:], tf.expand_dims(h_M, axis=2)], axis=2)
                 g_hat = tf.reshape(g_hat, shape=(nenvs*nsteps,d))

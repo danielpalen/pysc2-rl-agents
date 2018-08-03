@@ -163,8 +163,8 @@ def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T
     # Intrinsic rewards
     r_i = np.zeros((T+1,nenvs))
     for t in range(c,c+T+1):
-        sum_cos_dists = 0
         for env in range(nenvs):
+            sum_cos_dists = 0
             for i in range(1,c):
                 _s,_g = s[t,env]-s[t-i,env], goals[t-i,env]
                 num = np.squeeze(np.expand_dims(_s,axis=0)@np.expand_dims(_g,axis=1))

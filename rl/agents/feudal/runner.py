@@ -180,14 +180,14 @@ def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T
     returns = np.zeros((T+1, nenvs))
     returns_intr = np.zeros((T+1, nenvs))
     returns[-1,:] = values[0,c+T]
-    returns_intr[-1,:] = r_i[-1]
+    returns_intr[-1,:] = values[1,c+T]
     for t in reversed(range(T)):
         returns[t,:] = rewards[t+c,:] + discount * returns[t+1,:] * (1-dones[t+c,:])
-        returns_intr[t,:] = r_i[t,:] + discount * returns_intr[t+1,:] * (1-dones[t+c,:])
+        returns_intr[t,:] = rewards[t+c,:] + alpha * r_i[t,:] + discount * returns_intr[t+1,:] * (1-dones[t+c,:])
     returns = returns[:-1,:]
     returns_intr = returns_intr[:-1,:]
     adv_m = returns - values[0,c:c+T,:]
-    adv_w = returns + alpha * returns_intr - values[1,c:c+T,:]
+    adv_w = returns_intr - values[1,c:c+T,:]
 
     return returns, returns_intr, adv_m, adv_w
 

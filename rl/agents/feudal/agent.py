@@ -79,7 +79,7 @@ class FeudalAgent():
         # - worker loss
         log_probs = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
         worker_loss = -tf.reduce_mean(ADV_W * log_probs)
-        worker_value_loss = tf.reduce_mean(tf.square(R+0.5*RI-train_model.value[1])) / 2
+        worker_value_loss = tf.reduce_mean(tf.square(RI-train_model.value[1])) / 2
 
         entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
         loss = manager_loss \

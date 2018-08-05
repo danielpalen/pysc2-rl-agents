@@ -167,8 +167,10 @@ class Feudal:
                 #print("dilated state", dilated_state)
                 dilated_outs = tf.concat([LC_MANAGER_OUTPUTS[:, 1:, :], tf.reshape(g_, (nenvs*nsteps, 1, d))], axis = 1)
                 #print("dilated outs", dilated_outs)
+
                 g_hat = tf.reduce_sum(dilated_outs, axis=1)
-                goal = tf.nn.l2_normalize(g_hat, dim=1)
+                epsilon = 0.0001 #TODO: add some sort of decay here based on global_step (polynomial?)
+                goal = tf.cond(tf.random_uniform([1], minval=0, maxval=1)[-1] < epsilon, lambda: tf.random_normal((nenvs*nsteps, d), mean=0, stddev=1), lambda: tf.nn.l2_normalize(g_hat, dim=1))
 
                 # Manger Value
                 manager_value_fc = fully_connected(flattened_z, 256, activation_fn=tf.nn.relu)

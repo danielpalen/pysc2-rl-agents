@@ -145,7 +145,8 @@ class Feudal:
                 # REVIEW: maybe we want to put some strided convolutions in here because flattening
                 # z gives a pretty big vector.
                 # Dimensionaliy reduction on z to get R^d vector.
-                s = fully_connected(flatten(z), d, activation_fn=tf.nn.relu, scope="/s")
+                flattened_z = flatten(z)
+                s = fully_connected(flattened_z, d, activation_fn=tf.nn.relu, scope="/s")
                 #print('s', s, s.shape)
                 manager_LSTM_input = tf.reshape(s, shape=(nenvs,nsteps,d))
                 #print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)
@@ -167,14 +168,12 @@ class Feudal:
                 dilated_outs = tf.concat([LC_MANAGER_OUTPUTS[:, 1:, :], tf.reshape(g_, (nenvs*nsteps, 1, d))], axis = 1)
                 #print("dilated outs", dilated_outs)
                 g_hat = tf.reduce_sum(dilated_outs, axis=1)
-                #print("g_hat", g_hat)
-                g_hat = tf.reshape(g_hat, shape=(nenvs*nsteps,d))
-                #print('g_hat', g_hat, g_hat.shape)
                 goal = tf.nn.l2_normalize(g_hat, dim=1)
 
                 # Manger Value
-                g_hat_fc = fully_connected(g_hat, 256, activation_fn=tf.nn.relu)
-                manager_value = fully_connected(g_hat_fc, 1, activation_fn=None, scope="value")
+                manager_value_fc = fully_connected(flattened_z, 256, activation_fn=tf.nn.relu)
+                manager_value = fully_connected(manager_value_fc, 1, activation_fn=None, scope="value")
+                print("manager_value ", manager_value)
                 manager_value = tf.reshape(manager_value, [-1])
 
             with tf.variable_scope('worker'):
@@ -218,6 +217,7 @@ class Feudal:
 
                 worker_value = fully_connected(fc, 1, activation_fn=None, scope='value')
                 worker_value = tf.reshape(worker_value, [-1])
+                print("worker_value ", worker_value)
 
                 fn_out = non_spatial_output(fc, NUM_FUNCTIONS, 'fn_name')
 

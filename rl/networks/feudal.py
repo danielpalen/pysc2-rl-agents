@@ -169,7 +169,7 @@ class Feudal:
                 #print("dilated outs", dilated_outs)
 
                 g_hat = tf.reduce_sum(dilated_outs, axis=1)
-                epsilon = 0.0001 #TODO: add some sort of decay here based on global_step (polynomial?)
+                epsilon = 0.002 #TODO: add some sort of decay here based on global_step (polynomial?)
                 goal = tf.cond(tf.random_uniform([1], minval=0, maxval=1)[-1] < epsilon, lambda: tf.random_normal((nenvs*nsteps, d), mean=0, stddev=1), lambda: tf.nn.l2_normalize(g_hat, dim=1))
 
                 # Manger Value

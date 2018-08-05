@@ -215,7 +215,8 @@ class Feudal:
                 flat_out = flatten(U_w, scope='flat_out')
                 fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
 
-                worker_value = fully_connected(fc, 1, activation_fn=None, scope='value')
+                worker_value_fc = fully_connected(flattened_z, 256, activation_fn=tf.nn.relu)
+                worker_value = fully_connected(worker_value_fc, 1, activation_fn=None, scope='value')
                 worker_value = tf.reshape(worker_value, [-1])
                 print("worker_value ", worker_value)
 

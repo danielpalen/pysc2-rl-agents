@@ -109,7 +109,7 @@ class Feudal:
 
         nenvs = nbatch//nsteps
         res = ob_space['screen'][1]
-        filters = 64
+        filters = k
         ncores = c
         m_state_shape = (2, nenvs, ncores, d)
         w_state_shape = (2, nenvs, res, res, filters)
@@ -195,24 +195,18 @@ class Feudal:
                 )
                 print(convLSTM_state)
                 # TODO: what's the dimensions in batch_size??
+
                 U = tf.reshape(convLSTM_outputs, tf.concat([[nenvs*nsteps],tf.shape(convLSTM_outputs)[2:]], axis=0))
+
                 cut_g = tf.stop_gradient(goal)
                 cut_g = tf.expand_dims(cut_g, axis=1)
-                #print('LAST_C_GOALS',LAST_C_GOALS)
-                #print('cut_g', cut_g)
                 g_stack = tf.concat([LAST_C_GOALS, cut_g], axis=1)
-                #print('g_stack', g_stack)
                 last_c_g = g_stack[:,1:,:]
-                #print('last_c_g', last_c_g)
                 g_sum = tf.reduce_sum(last_c_g, axis=1)
+
                 phi = tf.get_variable("phi", shape=(d, k))
                 w = tf.matmul(g_sum, phi)
-                #print('w', w)
-                #print('screen', ob_space['screen'][1:3])
-                broadcast_w = broadcast_along_channels(w, ob_space['screen'][1:3])
-                U_w = concat2DAlongChannel([U, broadcast_w])
-                #print('bc w', broadcast_w)
-                #print('U_w', U_w)
+                U_w = tf.multiply(U, tf.reshape(w, (nenvs*nsteps, 1, 1, k)))
 
                 flat_out = flatten(U_w, scope='flat_out')
                 fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')

@@ -61,6 +61,6 @@ def safe_div(numerator, denominator, name="value"):
 def safe_log(x):
     """Computes a safe logarithm which returns 0 if x is zero."""
     return tf.where(
-        tf.equal(x, 0),
+        tf.less_equal(x, 0),
         tf.zeros_like(x),
         tf.log(tf.maximum(1e-12, x)))

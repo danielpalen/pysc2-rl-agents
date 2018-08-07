@@ -172,8 +172,6 @@ class Feudal:
                 epsilon = 0.002 #TODO: add some sort of decay here based on global_step (polynomial?)
                 goal = tf.cond(tf.random_uniform([1], minval=0, maxval=1)[-1] < epsilon, lambda: tf.random_normal((nenvs*nsteps, d), mean=0, stddev=1), lambda: tf.nn.l2_normalize(g_hat, dim=1))
 
-                tf.summary.histogram('goal', goal[0])
-
                 # Manger Value
                 manager_value_fc = fully_connected(flattened_z, 256, activation_fn=tf.nn.relu)
                 manager_value = fully_connected(manager_value_fc, 1, activation_fn=None, scope="value")
@@ -210,10 +208,6 @@ class Feudal:
                 w = tf.matmul(g_sum, phi)
                 U_w = tf.multiply(U, tf.reshape(w, (nenvs*nsteps, 1, 1, k)))
 
-                tf.summary.histogram('U', U[0,0,0])
-                tf.summary.histogram('w', w[0])
-                tf.summary.histogram('U', U[0])
-
                 flat_out = flatten(U_w, scope='flat_out')
                 fc = fully_connected(flat_out, 256, activation_fn=tf.nn.relu, scope='fully_con')
 
@@ -243,9 +237,7 @@ class Feudal:
                 return dist.sample()
 
             fn_pi, arg_pis = policy
-            tf.summary.histogram('fn_pi/raw', fn_pi[0])
             fn_pi = mask_unavailable_actions(available_actions, fn_pi)
-            tf.summary.histogram('fn_pi/masked', fn_pi[0])
             fn_samples = sample(fn_pi)
 
             arg_samples = dict()

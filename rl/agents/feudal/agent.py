@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.contrib import layers
 from tensorflow.python import debug as tf_debug
+from tensorflow.python.debug.lib.debug_data import InconvertibleTensorProto
 
 from rl.common.pre_processing import get_input_channels
 from rl.common.util import compute_entropy, safe_log, safe_div, mask_unavailable_actions
@@ -53,7 +54,7 @@ class FeudalAgent():
 
         if debug:
             def has_nan(datum, tensor):
-                if isinstance(tensor, tf_debug.InconvertibleTensorProto):
+                if isinstance(tensor, InconvertibleTensorProto):
                     return False
                 elif (np.issubdtype(tensor.dtype, np.floating) or
                       np.issubdtype(tensor.dtype, np.complex) or

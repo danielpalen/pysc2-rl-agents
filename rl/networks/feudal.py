@@ -146,7 +146,7 @@ class Feudal:
                 # z gives a pretty big vector.
                 # Dimensionaliy reduction on z to get R^d vector.
                 flattened_z = flatten(z)
-                s = fully_connected(flattened_z, d, activation_fn=tf.nn.relu, scope="/s")
+                s = fully_connected(flattened_z, d, activation_fn=tf.nn.relu, scope="s")
                 #print('s', s, s.shape)
                 manager_LSTM_input = tf.reshape(s, shape=(nenvs,nsteps,d))
                 #print('manager_LSTM_input', manager_LSTM_input, manager_LSTM_input.shape)

@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 from tensorflow.contrib import layers
+from tensorflow.python import debug as tf_debug
 
 from rl.common.pre_processing import get_input_channels
 from rl.common.util import compute_entropy, safe_log, safe_div, mask_unavailable_actions
@@ -19,6 +20,7 @@ class FeudalAgent():
         checkpoint_path = args.ckpt_path
         summary_writer = args.summary_writer
         max_gradient_norm = 1.0
+        debug = args.debug
 
         #TODO: check for correct format
         #TODO: rename those?
@@ -42,6 +44,16 @@ class FeudalAgent():
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
+
+        #if debug and debug_tb_adress:
+        #    raise ValueError(
+        #"The --debug and --tensorboard_debug_address flags are mutually "
+        #"exclusive.")
+        if  debug:
+            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+            sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
+        #elif  debug_tb_adress:
+        #    sess = tf_debug.TensorBoardDebugWrapperSession(sess, debug_tb_adress)
 
         nbatch = nenvs*nsteps
         ch = get_input_channels()

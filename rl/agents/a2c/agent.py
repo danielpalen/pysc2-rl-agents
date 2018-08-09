@@ -61,6 +61,7 @@ class A2CAgent():
         "exclusive.")
         if  debug:
             sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+            sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
         elif  debug_tb_adress:
             sess = tf_debug.TensorBoardDebugWrapperSession(sess, debug_tb_adress)
 

@@ -27,6 +27,7 @@ class PPOAgent():
         checkpoint_path = args.ckpt_path
         summary_writer = args.summary_writer
         clip = 0.2
+        debug = args.debug
 
         print('\n### PPO Agent #######')
         print(f'# policy = {policy}')
@@ -48,6 +49,17 @@ class PPOAgent():
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
+
+        #if debug and debug_tb_adress:
+        #    raise ValueError(
+        #"The --debug and --tensorboard_debug_address flags are mutually "
+        #"exclusive.")
+        if  debug:
+            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+            sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
+
+        #elif  debug_tb_adress:
+        #    sess = tf_debug.TensorBoardDebugWrapperSession(sess, debug_tb_adress)
 
         nbatch = nenvs*nsteps
         # assert nbatch % nminibatches == 0

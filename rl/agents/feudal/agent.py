@@ -53,7 +53,7 @@ class FeudalAgent():
 
         if debug:
             def has_nan(datum, tensor):
-                if isinstance(tensor, InconvertibleTensorProto):
+                if isinstance(tensor, tf_debug.InconvertibleTensorProto):
                     return False
                 elif (np.issubdtype(tensor.dtype, np.floating) or
                       np.issubdtype(tensor.dtype, np.complex) or

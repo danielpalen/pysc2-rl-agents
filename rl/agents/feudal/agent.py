@@ -50,9 +50,17 @@ class FeudalAgent():
         #    raise ValueError(
         #"The --debug and --tensorboard_debug_address flags are mutually "
         #"exclusive.")
-        if  debug:
+
+        if debug:
             def has_nan(datum, tensor):
-                return np.any(np.isnan(tensor))
+                if isinstance(tensor, InconvertibleTensorProto):
+                    return False
+                elif (np.issubdtype(tensor.dtype, np.floating) or
+                      np.issubdtype(tensor.dtype, np.complex) or
+                      np.issubdtype(tensor.dtype, np.integer)):
+                    return np.any(np.isnan(tensor))
+                else:
+                    return False
 
             sess = tf_debug.LocalCLIDebugWrapperSession(sess)
             sess.add_tensor_filter("has_nan", has_nan)

@@ -49,7 +49,7 @@ def safe_div(numerator, denominator, name="value"):
     Returns:
       The element-wise value of the numerator divided by the denominator.
     """
-    return tf.where(tf.equal(denominator, 0), tf.zeros_like(numerator), tf.div(numerator, denominator))
+    return tf.where(tf.equal(denominator, 0), tf.zeros_like(numerator), tf.div(numerator, tf.where(tf.equal(denominator, 0), tf.ones_like(denominator), denominator)))
 
 
 def safe_log(x):

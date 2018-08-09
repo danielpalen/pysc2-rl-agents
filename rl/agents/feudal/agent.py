@@ -50,7 +50,11 @@ class FeudalAgent():
         #"The --debug and --tensorboard_debug_address flags are mutually "
         #"exclusive.")
         if  debug:
+            def has_nan(datum, tensor):
+                return np.any(np.isnan(tensor))
+
             sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+            sess.add_tensor_filter("has_nan", has_nan)
             sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
         #elif  debug_tb_adress:
         #    sess = tf_debug.TensorBoardDebugWrapperSession(sess, debug_tb_adress)

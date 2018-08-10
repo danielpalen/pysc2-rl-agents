@@ -233,7 +233,7 @@ class Feudal:
         def sample_action(available_actions, policy):
 
             def sample(probs):
-                dist = Categorical(probs=probs)
+                dist = Categorical(probs=probs, allow_nan_stats=False)
                 return dist.sample()
 
             fn_pi, arg_pis = policy

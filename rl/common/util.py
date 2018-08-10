@@ -19,8 +19,8 @@ def flatten_first_dims_dict(x):
 
 def mask_unavailable_actions(available_actions, fn_pi):
     fn_pi *= available_actions
-    fn_pi = safe_div(fn_pi, tf.tile(tf.reduce_sum(fn_pi, axis=1, keep_dims=True), [1, tf.shape(fn_pi)[1]]))
-    #fn_pi /= tf.reduce_sum(fn_pi, axis=1, keep_dims=True)
+    #fn_pi = safe_div(fn_pi, tf.tile(tf.reduce_sum(fn_pi, axis=1, keep_dims=True), [1, tf.shape(fn_pi)[1]]))
+    fn_pi /= tf.reduce_sum(fn_pi, axis=1, keep_dims=True) #this should suffice
     return fn_pi
 
 

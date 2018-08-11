@@ -139,6 +139,7 @@ class FeudalAgent():
         tf.summary.scalar('rl/returns', tf.reduce_mean(R))
         tf.summary.scalar('rl/returns_intr', tf.reduce_mean(RI))
         tf.summary.scalar('rl/goal', tf.reduce_mean(train_model.LAST_C_GOALS[:,-1,:]))
+        tf.summary.histogram('goals',train_model.LAST_C_GOALS[:,-1,:])
         tf.summary.scalar('rl/sdiff', tf.reduce_mean(S_DIFF))
         tf.summary.scalar('rl/adv_m', tf.reduce_mean(ADV_M))
         tf.summary.scalar('rl/adv_w', tf.reduce_mean(ADV_W))
@@ -224,6 +225,7 @@ def compute_policy_entropy(available_actions, policy, actions):
     fn_pi, arg_pis = policy
     fn_pi = mask_unavailable_actions(available_actions, fn_pi)
     entropy = tf.reduce_mean(compute_entropy(fn_pi))
+    tf.summary.histogram("fn_pi ", fn_pi)
     tf.summary.scalar('entropy/fn', entropy)
 
     for arg_type in arg_ids.keys():

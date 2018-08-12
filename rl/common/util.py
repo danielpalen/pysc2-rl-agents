@@ -19,8 +19,8 @@ def flatten_first_dims_dict(x):
 
 def mask_unavailable_actions(available_actions, fn_pi):
     fn_pi *= available_actions
-    #fn_pi = safe_div(fn_pi, tf.tile(tf.reduce_sum(fn_pi, axis=1, keep_dims=True), [1, tf.shape(fn_pi)[1]]))
-    fn_pi /= tf.reduce_sum(fn_pi, axis=1, keep_dims=True) #this should suffice
+    fn_pi = safe_div(fn_pi, tf.tile(tf.reduce_sum(fn_pi, axis=1, keep_dims=True), [1, tf.shape(fn_pi)[1]]))
+    #fn_pi /= tf.reduce_sum(fn_pi, axis=1, keep_dims=True) #this should suffice
     return fn_pi
 
 
@@ -50,7 +50,11 @@ def safe_div(numerator, denominator, name="value"):
     Returns:
       The element-wise value of the numerator divided by the denominator.
     """
-    return tf.where(tf.equal(denominator, 0), tf.zeros_like(numerator), tf.divide(numerator, tf.where(tf.equal(denominator, 0), tf.ones_like(denominator), denominator)))
+    return tf.where(
+        tf.equal(denominator, 0),
+        tf.zeros_like(numerator),
+        tf.divide(numerator,
+        tf.where(tf.equal(denominator, 0), tf.ones_like(denominator), denominator)))
 
 
 def safe_log(x):

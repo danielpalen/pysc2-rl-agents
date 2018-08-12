@@ -61,5 +61,5 @@ def safe_log(x):
     """Computes a safe logarithm which returns 0 if x is zero."""
     return tf.where(
         tf.less_equal(x, 0),
-        tf.zeros_like(x),
+        tf.zeros_like(x) + 1e-12,
         tf.log(tf.maximum(1e-12, x)))

@@ -52,7 +52,7 @@ def safe_div(numerator, denominator, name="value"):
     """
     return tf.where(
         tf.equal(denominator, 0),
-        tf.zeros_like(numerator),
+        tf.zeros_like(numerator) + 1e-12,
         tf.divide(numerator,
         tf.where(tf.equal(denominator, 0), tf.ones_like(denominator), denominator)))
 

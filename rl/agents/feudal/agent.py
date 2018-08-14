@@ -223,9 +223,10 @@ def compute_policy_entropy(available_actions, policy, actions):
     _,arg_ids = actions
 
     fn_pi, arg_pis = policy
+    tf.summary.histogram("fn_pi_before", fn_pi)
     fn_pi = mask_unavailable_actions(available_actions, fn_pi)
     entropy = tf.reduce_mean(compute_entropy(fn_pi))
-    tf.summary.histogram("fn_pi ", fn_pi)
+    tf.summary.histogram("fn_pi_after", fn_pi)
     tf.summary.scalar('entropy/fn', entropy)
 
     for arg_type in arg_ids.keys():

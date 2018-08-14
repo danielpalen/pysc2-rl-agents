@@ -19,8 +19,12 @@ def flatten_first_dims_dict(x):
 
 def mask_unavailable_actions(available_actions, fn_pi):
     fn_pi *= available_actions
-    fn_pi = safe_div(fn_pi, tf.tile(tf.reduce_sum(fn_pi, axis=1, keep_dims=True), [1, tf.shape(fn_pi)[1]]))
-    #fn_pi /= tf.reduce_sum(fn_pi, axis=1, keep_dims=True) #this should suffice
+    norm = tf.reduce_sum(fn_pi, axis=1, keep_dims=True)
+    if norm == 0:
+        fn_pi = available_actions / tf.reduce_sum(available_actions, axis=1, keep_dims=True)
+    else:
+        fn_pi = safe_div(fn_pi, tf.tile(norm, [1, tf.shape(fn_pi)[1]]))
+
     return fn_pi
 
 
@@ -52,7 +56,7 @@ def safe_div(numerator, denominator, name="value"):
     """
     return tf.where(
         tf.equal(denominator, 0),
-        tf.zeros_like(numerator) + 1e-12,
+        tf.zeros_like(numerator),
         tf.divide(numerator,
         tf.where(tf.equal(denominator, 0), tf.ones_like(denominator), denominator)))
 
@@ -61,5 +65,5 @@ def safe_log(x):
     """Computes a safe logarithm which returns 0 if x is zero."""
     return tf.where(
         tf.less_equal(x, 0),
-        tf.zeros_like(x) + 1e-12,
+        tf.zeros_like(x),
         tf.log(tf.maximum(1e-12, x)))

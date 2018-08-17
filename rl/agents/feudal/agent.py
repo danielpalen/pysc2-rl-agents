@@ -225,6 +225,7 @@ def compute_policy_entropy(available_actions, policy, actions):
     fn_pi, arg_pis = policy
     tf.summary.histogram("fn_pi_before", fn_pi)
     fn_pi = mask_unavailable_actions(available_actions, fn_pi)
+    tf.summary.histogram("fn_pi_envs", tf.reduce_sum(fn_pi, axis=1, keep_dims=True))
     entropy = tf.reduce_mean(compute_entropy(fn_pi))
     tf.summary.histogram("fn_pi_after", fn_pi)
     tf.summary.scalar('entropy/fn', entropy)

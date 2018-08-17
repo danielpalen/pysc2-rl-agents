@@ -20,10 +20,10 @@ def flatten_first_dims_dict(x):
 def mask_unavailable_actions(available_actions, fn_pi):
     fn_pi *= available_actions
     norm = tf.reduce_sum(fn_pi, axis=1, keep_dims=True)
-    if norm == 0:
-        fn_pi = available_actions / tf.reduce_sum(available_actions, axis=1, keep_dims=True)
-    else:
-        fn_pi = safe_div(fn_pi, tf.tile(norm, [1, tf.shape(fn_pi)[1]]))
+    #if norm == 0:
+    #    fn_pi = available_actions / tf.reduce_sum(available_actions, axis=1, keep_dims=True)
+    #else:
+    fn_pi = safe_div(fn_pi, tf.tile(norm, [1, tf.shape(fn_pi)[1]]))
 
     return fn_pi
 

@@ -137,11 +137,17 @@ class FeudalAgent():
             train_op = layers.optimize_loss(loss=loss, global_step=global_step,
                 optimizer=optimizer, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")
 
-        s_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'model/manager/s')[0]
-        fully_con_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'model/worker/fully_con')[0]
+        with tf.variable_scope('model', reuse=True):
+            s_weights = tf.reduce_mean(tf.get_variable('manager/s/weights'))
+            fully_con_weights = tf.reduce_mean(tf.get_variable('worker/fully_con/weights'))
 
-        tf.summary.histogram('weights/s', s_weights)
-        tf.summary.histogram('weights/fully_con', fully_con_weights)
+        #tvars = tf.trainable_variables()
+        #tvars_vals = sess.run(tvars)
+        #for var, val in zip(tvars, tvars_vals):
+        #    print(var.name, val)
+
+        tf.summary.scalar('weights/s', s_weights)
+        tf.summary.scalar('weights/fully_con', fully_con_weights)
 
         tf.summary.scalar('entropy', entropy)
         tf.summary.scalar('loss', loss)

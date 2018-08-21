@@ -100,6 +100,9 @@ class SC2ArgumentParser():
                             help='size of goal-embedding space')
         parser.add_argument('--c', type=int, default=10,
                             help='prediction horizon')
+        parser.add_argument('--retrain_m', type=bool, nargs="?", const=True, default=False,
+                            help='train only manager while worker weights are fixed')
+
 
 
         def parse_args():

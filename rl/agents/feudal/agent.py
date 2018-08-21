@@ -127,8 +127,21 @@ class FeudalAgent():
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99, epsilon=1e-5)
-        train_op = layers.optimize_loss(loss=loss, global_step=global_step,
-            optimizer=optimizer, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")
+
+        if args.retrain_m:
+            train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                     "model/manager")
+            train_op = layers.optimize_loss(loss=loss, global_step=global_step,
+                optimizer=optimizer, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op", variables=train_vars)
+        else:
+            train_op = layers.optimize_loss(loss=loss, global_step=global_step,
+                optimizer=optimizer, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")
+
+        s_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'model/manager/s')[0]
+        fully_con_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'model/worker/fully_con')[0]
+
+        tf.summary.histogram('weights/s', s_weights)
+        tf.summary.histogram('weights/fully_con', fully_con_weights)
 
         tf.summary.scalar('entropy', entropy)
         tf.summary.scalar('loss', loss)

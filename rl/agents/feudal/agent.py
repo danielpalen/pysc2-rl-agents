@@ -97,8 +97,8 @@ class FeudalAgent():
 
         # define loss
         # - manager loss
-        num = tf.reduce_sum(tf.multiply(S_DIFF,train_model.LAST_C_GOALS[:,-1,:]),axis=1)
-        den = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.LAST_C_GOALS[:,-1,:],axis=1)
+        num = tf.reduce_sum(tf.multiply(S_DIFF,train_model.goal),axis=1)
+        den = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.goal,axis=1)
         cos_similarity = safe_div(num, den, "manager_cos")
         manager_loss = -tf.reduce_mean(ADV_M * cos_similarity)
         manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0])) / 2
@@ -113,7 +113,6 @@ class FeudalAgent():
              + value_loss_weight * manager_value_loss \
              + value_loss_weight * worker_value_loss \
              - entropy_weight * entropy
-
 
         print('log_probs',log_probs)
         print('manager_loss',manager_loss)
@@ -139,7 +138,9 @@ class FeudalAgent():
 
         with tf.variable_scope('model', reuse=True):
             s_weights = tf.reduce_mean(tf.get_variable('manager/s/weights'))
+            fully_con_m_weights = tf.reduce_mean(tf.get_variable('manager/fully_connected/weights'))
             fully_con_weights = tf.reduce_mean(tf.get_variable('worker/fully_con/weights'))
+            lstm_weights = tf.reduce_mean(tf.get_variable('manager/manager_lstm/basic_lstm_cell/kernel'))
 
         #tvars = tf.trainable_variables()
         #tvars_vals = sess.run(tvars)
@@ -148,6 +149,8 @@ class FeudalAgent():
 
         tf.summary.scalar('weights/s', s_weights)
         tf.summary.scalar('weights/fully_con', fully_con_weights)
+        tf.summary.scalar('weights/fully_con_m_weights', fully_con_m_weights)
+        tf.summary.scalar('weights/manager_lstm', lstm_weights)
 
         tf.summary.scalar('entropy', entropy)
         tf.summary.scalar('loss', loss)

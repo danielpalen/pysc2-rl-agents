@@ -174,7 +174,7 @@ class Feudal:
 
                 # Manger Value
                 manager_value_fc = fully_connected(flattened_z, 256, activation_fn=tf.nn.relu)
-                manager_value = fully_connected(manager_value_fc, 1, activation_fn=None, scope="value")
+                manager_value = fully_connected(manager_value_fc, 1, activation_fn=None, scope="manager_value")
                 print("manager_value ", manager_value)
                 manager_value = tf.reshape(manager_value, [-1])
 
@@ -292,6 +292,7 @@ class Feudal:
         self.AV_ACTS = AV_ACTS
         self.LAST_C_GOALS = LAST_C_GOALS
         self.STATES = STATES
+        self.goal = goal
         self.LC_MANAGER_OUTPUTS = LC_MANAGER_OUTPUTS
 
         self.policy = policy

@@ -26,7 +26,7 @@ class PPOAgent():
         res = args.res
         checkpoint_path = args.ckpt_path
         summary_writer = args.summary_writer
-        clip = 0.2
+        clip = args.clip
         debug = args.debug
 
         print('\n### PPO Agent #######')

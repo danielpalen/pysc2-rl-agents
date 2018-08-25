@@ -93,6 +93,10 @@ class SC2ArgumentParser():
                             help='weight of value function loss')
 
 
+        #PPO args
+        parser.add_argument('--clip', type=float, default=0.2,
+                            help='PPO clipping value')
+
         #Feudal Args
         parser.add_argument('--d', type=int, default=512,
                             help='manager dimension')

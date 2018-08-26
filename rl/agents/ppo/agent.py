@@ -99,7 +99,7 @@ class PPOAgent():
 
         # Define Optimizer
         global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
+        #learning_rate = tf.train.exponential_decay(learning_rate, global_step, 10000, 0.94)
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99, epsilon=1e-5)
         train_op = layers.optimize_loss(loss=loss, global_step=global_step,
             optimizer=optimizer, clip_gradients=max_gradient_norm, learning_rate=None, name="train_op")

@@ -155,8 +155,8 @@ def compute_sdiff(s, c, T, nenvs, d):
 
 
 def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T, nenvs, c):
-    alpha = 0.5
-
+    alpha = 0.9
+    manager_discount = 0.999
     # print('s', s.shape)
     # print('goals', goals.shape)
 
@@ -182,7 +182,7 @@ def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T
     returns[-1,:] = values[0,c+T]
     returns_intr[-1,:] = values[1,c+T]
     for t in reversed(range(T)):
-        returns[t,:] = rewards[t+c,:] + discount * returns[t+1,:] * (1-dones[t+c,:])
+        returns[t,:] = rewards[t+c,:] + manager_discount * returns[t+1,:] * (1-dones[t+c,:])
         returns_intr[t,:] = rewards[t+c,:] + alpha * r_i[t,:] + discount * returns_intr[t+1,:] * (1-dones[t+c,:])
     returns = returns[:-1,:]
     returns_intr = returns_intr[:-1,:]

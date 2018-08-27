@@ -140,12 +140,12 @@ class Feudal:
             print('flat bc', broadcast_out)
 
             z = concat2DAlongChannel([screen_out, minimap_out, broadcast_out])
+            flattened_z = flatten(z)
 
             with tf.variable_scope('manager'):
                 # REVIEW: maybe we want to put some strided convolutions in here because flattening
                 # z gives a pretty big vector.
                 # Dimensionaliy reduction on z to get R^d vector.
-                flattened_z = flatten(z)
                 s = fully_connected(flattened_z, d, activation_fn=tf.nn.relu, scope="s")
                 #print('s', s, s.shape)
                 manager_LSTM_input = tf.reshape(s, shape=(nenvs,nsteps,d))

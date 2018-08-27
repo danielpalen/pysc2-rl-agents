@@ -60,7 +60,7 @@ def safe_div(numerator, denominator, name="value"):
         tf.less(tf.abs(denominator), 1e-12),
         tf.zeros_like(numerator),
         tf.divide(numerator,
-        tf.where(tf.equal(denominator), 0), tf.ones_like(denominator) * 1e-12 , denominator))
+        tf.where(tf.equal(denominator, 0), tf.ones_like(denominator) * 1e-12 , denominator)))
 
 
 def safe_log(x):

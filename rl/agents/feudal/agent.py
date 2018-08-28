@@ -98,7 +98,12 @@ class FeudalAgent():
         # define loss
         # - manager loss
         num = tf.reduce_sum(tf.multiply(S_DIFF,train_model.goal),axis=1)
-        den = tf.norm(S_DIFF,axis=1)*tf.norm(train_model.goal,axis=1)
+
+        #extra check to make sure s_diff norm is not 0
+        s_norm = tf.norm(S_DIFF,axis=1)
+        s_norm = tf.where(tf.equal(s_norm, 0), 1e-12, s_norm)
+        
+        den = s_norm*tf.norm(train_model.goal,axis=1)
         cos_similarity = safe_div(num, den, "manager_cos")
         manager_loss = -tf.reduce_mean(ADV_M * cos_similarity)
         manager_value_loss = tf.reduce_mean(tf.square(R-train_model.value[0])) / 2
@@ -167,6 +172,12 @@ class FeudalAgent():
         tf.summary.scalar('rl/adv_w', tf.reduce_mean(ADV_W))
         tf.summary.scalar('rl/value_m', tf.reduce_mean(train_model.value[0]))
         tf.summary.scalar('rl/value_w', tf.reduce_mean(train_model.value[1]))
+
+        tf.summary.scalar('network/z', tf.reduce_mean(train_model.z))
+        tf.summary.scalar('network/s', tf.reduce_mean(train_model.s))
+        tf.summary.scalar('network/w', tf.reduce_mean(train_model.w))
+        tf.summary.scalar('network/U', tf.reduce_mean(train_model.u))
+
         summary_writer.add_graph(sess.graph)
         variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         saver = tf.train.Saver(variables, max_to_keep=max_to_keep)

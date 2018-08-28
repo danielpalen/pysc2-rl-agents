@@ -100,7 +100,7 @@ class FeudalAgent():
         num = tf.reduce_sum(tf.multiply(S_DIFF,train_model.goal),axis=1)
 
         s_norm = tf.norm(S_DIFF,axis=1)
-        s_norm = tf.cond(tf.equal(s_norm, 0), tf.ones_like(denominator) * 1e-12, s_norm)
+        s_norm = tf.cond(tf.equal(s_norm, 0), tf.ones_like(s_norm) * 1e-12, s_norm)
 
         den = s_norm*tf.norm(train_model.goal,axis=1)
         cos_similarity = safe_div(num, den, "manager_cos")

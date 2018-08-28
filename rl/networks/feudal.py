@@ -294,6 +294,11 @@ class Feudal:
         self.goal = goal
         self.LC_MANAGER_OUTPUTS = LC_MANAGER_OUTPUTS
 
+        self.z = flattened_z
+        self.s = s
+        self.w = w
+        self.u = U
+
         self.policy = policy
         self.step = step
         self.value = value

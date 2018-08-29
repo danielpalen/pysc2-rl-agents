@@ -143,6 +143,7 @@ def compute_sdiff(s, c, T, nenvs, d):
     s_diff = np.zeros((T,nenvs,d))
     for t in range(T):
         s_diff[t,:,:] = s[t+2*c,:,:] - s[t+c,:,:]
+    s_diff[s_diff==0] = 1e-12
     return s_diff
 
 

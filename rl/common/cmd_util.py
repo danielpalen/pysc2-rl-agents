@@ -104,6 +104,10 @@ class SC2ArgumentParser():
                             help='size of goal-embedding space')
         parser.add_argument('--c', type=int, default=10,
                             help='prediction horizon')
+        parser.add_argument('--alpha', type=float, default=0.9,
+                            help='manager impact on worker reward')
+        parser.add_argument('--manager_discount', type=float, default=0.999,
+                            help='manager discount factor gamma')
         parser.add_argument('--retrain_m', type=bool, nargs="?", const=True, default=False,
                             help='train only manager while worker weights are fixed')
 

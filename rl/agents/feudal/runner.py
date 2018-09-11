@@ -84,7 +84,7 @@ class FeudalRunner(BaseRunner):
                     self.cumulative_score += self._summarize_episode(t)
 
         returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(
-            rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c
+            rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c, args.alpha, args.manager_discount
         )
         s_diff = compute_sdiff(s, self.c, self.T, self.envs.n_envs, self.d)
         # last_c_goals = compute_last_c_goals(goals, self.envs.n_envs, self.T, self.c, self.d)
@@ -154,9 +154,7 @@ def compute_sdiff(s, c, T, nenvs, d):
 #     return last_c_g
 
 
-def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T, nenvs, c):
-    alpha = 0.9
-    manager_discount = 0.999
+def compute_returns_and_advantages(rewards, dones, values, s, goals, discount, T, nenvs, c, alpha, manager_discount):
     # print('s', s.shape)
     # print('goals', goals.shape)
 

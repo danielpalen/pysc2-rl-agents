@@ -32,6 +32,8 @@ class FeudalRunner(BaseRunner):
         self.T = args.steps_per_batch #T is the length of the actualy trajectory
         self.n_steps = 2 * self.c + self.T
         self.discount = args.discount
+        self.alpha = args.alpha
+        self.manager_discount = args.manager_discount
 
         self.preproc = Preprocessor()
         self.last_obs = self.preproc.preprocess_obs(self.envs.reset())
@@ -84,7 +86,7 @@ class FeudalRunner(BaseRunner):
                     self.cumulative_score += self._summarize_episode(t)
 
         returns, returns_intr, adv_m, adv_w = compute_returns_and_advantages(
-            rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c, args.alpha, args.manager_discount
+            rewards, dones, values, s, mb_last_c_goals[:,:,-1,:], self.discount, self.T, self.envs.n_envs, self.c, self.alpha, self.manager_discount
         )
         s_diff = compute_sdiff(s, self.c, self.T, self.envs.n_envs, self.d)
         # last_c_goals = compute_last_c_goals(goals, self.envs.n_envs, self.T, self.c, self.d)

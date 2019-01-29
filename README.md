@@ -40,6 +40,8 @@ This repository is part of a research project at the
 [Marcel Hussing](https://github.com/marcelhussing), and
 [Simon Meister](https://github.com/simonmeister).
 
+The repository was originally located [here](https://github.com/simonmeister/pysc2-rl-agents) but has moved to this new location.
+
 ### Progress
 - [x] A2C agent
 - [x] FullyConv architecture

@@ -50,7 +50,7 @@ The repository was originally located [here](https://github.com/simonmeister/pys
 (predicting all arguments independently)
 - [x] support training on all mini games
 - [ ] report results for all mini games
-- [ ] LSTM architecture
+- [x] LSTM architecture
 - [ ] Multi-GPU training
 
 ### License

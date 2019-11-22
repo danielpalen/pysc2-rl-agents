@@ -1,4 +1,29 @@
+# PySC2 Deep RL Agents
+
 <div align="center">
+  <a href="https://youtu.be/m2pC9md0ixY" target="_blank">
+    <img src="https://user-images.githubusercontent.com/22519290/36123695-c69e17dc-104d-11e8-80bd-33726f3f0f12.gif"
+         alt="MoveToBeacon"
+         width="130" border="1" style="color:white" />
+  </a>
+  <a href="https://youtu.be/lpOlKfyhIXc" target="_blank">
+    <img src="https://user-images.githubusercontent.com/22519290/36123698-c910b650-104d-11e8-8019-8825187b677f.gif"
+         alt="CollectMineralShards"
+         width="130" border="1" style="color:white" />
+  </a>
+  <a href="https://youtu.be/GFRsXx0imHc" target="_blank">
+    <img src="https://user-images.githubusercontent.com/22519290/36123701-cabcb13e-104d-11e8-9aa8-7f1332d3cdb7.gif"
+         alt="FindAndDefeatZerglings"
+         width="131" border="1" style="color:white" />
+  </a>
+  <a href="https://youtu.be/-wDhAHkj90A" target="_blank">
+    <img src="https://user-images.githubusercontent.com/22519290/36202298-87b14c60-1183-11e8-9b3f-f9bb5c8b1ab7.gif"
+         alt="DefeatZerglingsAndBanelings"
+         width="132" border="1" style="color:white" />
+  </a>
+</div>
+
+<!-- <div align="center">
   <a href="https://youtu.be/m2pC9md0ixY" target="_blank">
     <img src="https://user-images.githubusercontent.com/22519290/36123695-c69e17dc-104d-11e8-80bd-33726f3f0f12.gif"
          alt="MoveToBeacon"
@@ -22,27 +47,23 @@
          alt="DefeatZerglingsAndBanelings"
          width="320" border="10" style="color:white" />
   </a>
-</div>
+</div> -->
 
-# PySC2 Deep RL Agents
 
-This repository implements a Advantage Actor-Critic agent baseline for the
-[pysc2](https://github.com/deepmind/pysc2/)
-environment as described in the
-[DeepMind StarCraft II paper](https://deepmind.com/documents/110/sc2le.pdf).
-We use a synchronous variant of A3C (A2C) to effectively train on GPUs and
-otherwise stay as close as possible to the agent described in the paper.
+This repository implements different Deep Reinforcement Learning Agents for the [pysc2](https://github.com/deepmind/pysc2/) learning environment as described in the [DeepMind StarCraft II paper](https://deepmind.com/documents/110/sc2le.pdf).
 
-This repository is part of a research project at the
-[Autonomous Systems Labs](http://www.ias.informatik.tu-darmstadt.de/)
-, [TU Darmstadt](https://www.tu-darmstadt.de/) by
-[Daniel Palenicek](https://github.com/danielpalen),
-[Marcel Hussing](https://github.com/marcelhussing), and
-[Simon Meister](https://github.com/simonmeister).
+We provide implementations for:
+- Asynchonous Advantage Actor Critic (A2C)
+- Proximal Policy Optimization (PPO)
+- FeUdal Networks (FuN)
 
-The repository was originally located [here](https://github.com/simonmeister/pysc2-rl-agents) but has moved to this new location.
+We use a synchronous variant of A3C (A2C) to effectively train on GPUs and otherwise stay as close as possible to the agent described in the paper.
 
-### Progress
+This repository is part of a research project at the [Autonomous Systems Labs](http://www.ias.informatik.tu darmstadt.de/), [TU Darmstadt](https://www.tu-darmstadt.de/) by [Daniel Palenicek](https://github.com/danielpalen), [Marcel Hussing](https://github.com/marcelhussing), and [Simon Meister](https://github.com/simonmeister).
+
+**The repository was originally located at [simonmeister/pysc2-rl-agents](https://github.com/simonmeister/pysc2-rl-agents) but has moved to this new location.**
+
+<!-- ### Progress
 - [x] A2C agent
 - [x] FullyConv architecture
 - [x] support all spatial screen and minimap observations as well as non-spatial player observations
@@ -51,13 +72,19 @@ The repository was originally located [here](https://github.com/simonmeister/pys
 - [x] support training on all mini games
 - [ ] report results for all mini games
 - [x] LSTM architecture
-- [ ] Multi-GPU training
+- [ ] Multi-GPU training -->
 
 ### License
 
 This project is licensed under the MIT License (refer to the LICENSE file for details).
 
 ## Results
+
+### FuDal
+
+### PPO
+
+### A2C
 
 On the mini games, we get the following results:
 
@@ -73,14 +100,7 @@ On the mini games, we get the following results:
 
 In the following we show plots for the score over episodes.
 
-##### MoveToBeacon
-<img src="https://user-images.githubusercontent.com/22519290/35693701-3b4b469a-077f-11e8-942d-c645644fa671.png" width="360">
-
-##### CollectMineralShards
-<img src="https://user-images.githubusercontent.com/22519290/35692346-66e966fa-077b-11e8-8ad3-03afc684b8bf.png" width="360">
-
-##### FindAndDefeatZerglings
-<img src="https://user-images.githubusercontent.com/22519290/35964384-e7ebe570-0cb7-11e8-90af-9ad495d42469.png" width="360">
+<img src="https://user-images.githubusercontent.com/29195346/69478636-088f9e80-0df5-11ea-95ce-769bed6be5d8.png">
 
 Note that the DeepMind mean scores are their best individual scores after 100 runs for each
 game, where the initial learning rate was randomly sampled for each run.
@@ -123,9 +143,4 @@ and model checkpoints are written to `out/models/<experiment_name>`.
 
 
 ## Acknowledgments
-The code in `rl/environment.py` is based on
-[OpenAI baselines](https://github.com/openai/baselines/tree/master/baselines/a2c),
-with adaptions from
-[sc2aibot](https://github.com/pekaalto/sc2aibot).
-Some of the code in `rl/agents/a2c/runner.py` is loosely based on
-[sc2aibot](https://github.com/pekaalto/sc2aibot).
+The code in `rl/environment.py` is based on [OpenAI baselines](https://github.com/openai/baselines/tree/master/baselines/a2c), with adaptions from [sc2aibot](https://github.com/pekaalto/sc2aibot). Some of the code in `rl/agents/a2c/runner.py` is loosely based on [sc2aibot](https://github.com/pekaalto/sc2aibot).

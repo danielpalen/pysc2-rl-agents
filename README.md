@@ -63,9 +63,20 @@ This repository is part of a student research project which was conducted at the
 
 **The repository was originally located at [simonmeister/pysc2-rl-agents](https://github.com/simonmeister/pysc2-rl-agents) but has moved to this new location.**
 
+## Content
+
+### FeUdal Networks
+
+### PPO
+
+### A2C
+
+### Reports
+
 We document our results more in-depth in the following reports:
 - Daniel Palenicek, Marcel Hussing, Simon Meister (Apr. 2018): [Deep Reinforcement Learning for StarCraft II](reports/1_deep_reinforcement_learning_for_starcraft_ii.pdf)
 - Daniel Palenicek, Marcel Hussing (Sep. 2018): [Adapting Feudal Networks for StarCraft II](reports/2_adapting_feudal_networks_for_starcraft_ii.pdf)
+
 
 <!-- ### Progress
 - [x] A2C agent
@@ -81,35 +92,38 @@ We document our results more in-depth in the following reports:
 
 ## Results
 
+On the mini games, we report the following results as best mean over score:
+
+| Map                         | FC  | ConvLSTM | PPO | FUN | [DeepMind](https://deepmind.com/documents/110/sc2le.pdf) 
+| ---                         | --- | ---      | --- | --- | ---                                                      
+| MoveToBeacon                | 26  | 26       | 26  | 26  | 26
+| CollectMineralShards        | 97  | 93       | -   | -   | 103
+| FindAndDefeatZerglings      | 45  | -        | -   | -   | 45
+| DefeatRoaches               | -   | -        | -   | -   | 100
+| DefeatZerglingsAndBanelings | 68  | -        | -   | -   | 62
+| CollectMineralsAndGas       | -   | -        | -   | -   | 3978
+| BuildMarines                | -   | -        | -   | -   | 3
+
+In the following we show plots for the score over episodes.
+
 ### FeUdal Networks
 
 ### PPO
 
+<img src="https://user-images.githubusercontent.com/29195346/69479708-cd936800-0e00-11ea-8484-3e9e4972efd0.png" width=580>
+
 ### A2C
 
-On the mini games, we get the following results:
+#### Convolutional LSTM 
+<img src="https://user-images.githubusercontent.com/29195346/69479603-6d4ff680-0dff-11ea-806e-ef4e9c0946d0.png" width=580>
 
-| Map | best mean score (ours) |  best mean score (DeepMind) | episodes (ours) |
-| --- | --- | --- | --- |
-| MoveToBeacon | **26** | 26 | 8K |
-| CollectMineralShards | **97** | 103 | 300K |
-| FindAndDefeatZerglings | **45** | 45 | 450K |
-| DefeatRoaches | - | 100 | - |
-| DefeatZerglingsAndBanelings | **68** | 62 | - |
-| CollectMineralsAndGas | - | 3978 | - |
-| BuildMarines | - | 3 | - |
-
-In the following we show plots for the score over episodes.
+#### Fully Connected
 
 <img src="https://user-images.githubusercontent.com/29195346/69478636-088f9e80-0df5-11ea-95ce-769bed6be5d8.png">
 
 Note that the DeepMind mean scores are their best individual scores after 100 runs for each
 game, where the initial learning rate was randomly sampled for each run.
 We use a constant initial learning rate for a much smaller number of runs due to limited hardware.
-All agents use the same FullyConv agent.
-
-With default settings (32 environments), learning MoveToBeacon well takes between 3K and 8K total episodes.
-This varies each run depending on random initialization and action sampling.
 
 ## Usage
 

@@ -102,7 +102,7 @@ class PPOAgent():
             value_losses_clipped = tf.square(RETURNS - value_pred_clipped) 
             value_loss = 0.5 * tf.reduce_mean(tf.maximum(value_losses, value_losses_clipped))
         else:
-            value_loss = tf.reduce_mean(tf.square(RETURNS - train_model.value)) # TODO: make PPO style value loss.
+            value_loss = 0.5 * tf.reduce_mean(tf.square(RETURNS - train_model.value)) # TODO: make PPO style value loss.
         #Entropy Loss
         entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
         

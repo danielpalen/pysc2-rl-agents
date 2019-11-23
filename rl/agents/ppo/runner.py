@@ -98,13 +98,13 @@ class PPORunner():
         obs     = flatten_first_dims_dict(stack_ndarray_dicts(all_obs))
         returns = flatten_first_dims(returns)
         advs    = flatten_first_dims(advs)
-
+        values = flatten_first_dims(values)
+        
         self.last_obs = last_obs
 
         if self.train:
             mbloss = []
             old_log_probs = self.agent.get_log_probs(obs, self.states, actions)
-
             if self.states is None:
                 # print('train')
                 inds = np.arange(nbatch)
@@ -123,7 +123,7 @@ class PPORunner():
                         )
                         # print(returns.shape, advs.shape, old_log_probs.shape)
                         # print(old_log_probs)
-                        mbinputs = [a[mbinds] for a in (returns, advs, old_log_probs)]
+                        mbinputs = [a[mbinds] for a in (returns, advs, old_log_probs, values)]
                         _step, _loss, _summary = self.agent.train(mb_obs, mb_states, mb_actions, *mbinputs, summary=train_summary)
                         # print(f'loss {_step}:{_loss}')
                     mbloss.append(_loss)

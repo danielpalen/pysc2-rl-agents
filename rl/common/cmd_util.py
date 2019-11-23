@@ -96,6 +96,8 @@ class SC2ArgumentParser():
         #PPO args
         parser.add_argument('--clip', type=float, default=0.2,
                             help='PPO clipping value')
+        parser.add_argument('--clip-value-loss', action='store_true',
+                            help='clip value loss similar to clipping policy loss')
 
         #Feudal Args
         parser.add_argument('--d', type=int, default=512,

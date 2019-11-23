@@ -28,6 +28,7 @@ class PPOAgent():
         summary_writer = args.summary_writer
         clip = args.clip
         debug = args.debug
+        clip_value_loss = args.clip_value_loss
 
         print('\n### PPO Agent #######')
         print(f'# policy = {policy}')
@@ -85,16 +86,26 @@ class PPOAgent():
         ADVS = tf.placeholder(tf.float32, [None], name='advs')
         RETURNS = tf.placeholder(tf.float32, [None], name='returns')
         OLD_LOGPROBS = tf.placeholder(tf.float32, [None], name='old_log_probs') # TODO:
-        OLD_VALUE = tf.placeholder(tf.float32, [None], name='old_values') # TODO:
+        OLD_VALUES = tf.placeholder(tf.float32, [None], name='old_values') # TODO:
 
         # Define Loss
         log_probs = compute_policy_log_probs(train_model.AV_ACTS, train_model.policy, ACTIONS)
         ratio = tf.exp(log_probs-OLD_LOGPROBS)
+        # Policy Loss
         p_loss_1 = -ADVS * ratio
         p_loss_2 = -ADVS * tf.clip_by_value(ratio, 1.0-clip, 1.0+clip)
         policy_loss = tf.reduce_mean(tf.maximum(p_loss_1,p_loss_2))
-        value_loss = tf.reduce_mean(tf.square(RETURNS - train_model.value) / 2.) # TODO: make PPO style value loss.
+        # Value Loss
+        if clip_value_loss:
+            value_pred_clipped = tf.clip_by_value(OLD_VALUES + (train_model.values - OLD_VALUES), -clip, clip) 
+            value_losses = tf.square(RETURNS - train_model.values)
+            value_losses_clipped = tf.square(RETURNS - value_pred_clipped) 
+            value_loss = 0.5 * tf.reduce_mean(tf.max(value_losses, value_losses_clipped))
+        else:
+            value_loss = tf.reduce_mean(tf.square(RETURNS - train_model.value)) # TODO: make PPO style value loss.
+        #Entropy Loss
         entropy = compute_policy_entropy(train_model.AV_ACTS, train_model.policy, ACTIONS)
+        
         loss = policy_loss  + value_loss * value_loss_weight - entropy * entropy_weight
 
         # Define Optimizer
@@ -128,7 +139,7 @@ class PPOAgent():
             sess.run(tf.variables_initializer(variables))
 
 
-        def train(obs, states, actions, returns, advs, old_log_probs, summary=False):
+        def train(obs, states, actions, returns, advs, old_log_probs, old_values, summary=False):
             """
             Args:
               obs: dict of preprocessed observation arrays, with num_batch elements
@@ -149,7 +160,8 @@ class PPOAgent():
                 RETURNS   : returns,
                 ADVS      : advs,
                 ACTIONS[0]   : actions[0],
-                OLD_LOGPROBS : old_log_probs
+                OLD_LOGPROBS : old_log_probs,
+                OLD_VALUES : old_values
             }
             feed_dict.update({ v: actions[1][k] for k, v in ACTIONS[1].items() })
             if states is not None: # For recurrent polices

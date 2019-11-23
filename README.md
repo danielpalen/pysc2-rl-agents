@@ -75,7 +75,7 @@ To evalutate after training run `python run.py <experiment-id> --eval`.
 
 The implementation enables highly configurable experiments via the command line args. To see the full documentation run `python run.py --help`. 
 
-The most important flags include:
+The most important flags to add to the `python run.py <experiment-id>` command include:
 
 - `--agent`: Choose between A2C, PPO and FeUdal 
 - `--policy`: Choose the topology of the policy network (not all agents are compatible with every network)

@@ -23,41 +23,14 @@
   </a>
 </div>
 
-<!-- <div align="center">
-  <a href="https://youtu.be/m2pC9md0ixY" target="_blank">
-    <img src="https://user-images.githubusercontent.com/22519290/36123695-c69e17dc-104d-11e8-80bd-33726f3f0f12.gif"
-         alt="MoveToBeacon"
-         width="320" border="10" style="color:white" />
-  </a>
-  <a href="https://youtu.be/lpOlKfyhIXc" target="_blank">
-    <img src="https://user-images.githubusercontent.com/22519290/36123698-c910b650-104d-11e8-8019-8825187b677f.gif"
-         alt="CollectMineralShards"
-         width="320" border="10" style="color:white" />
-  </a>
-</div>
-
-<div align="center">
-  <a href="https://youtu.be/GFRsXx0imHc" target="_blank">
-    <img src="https://user-images.githubusercontent.com/22519290/36123701-cabcb13e-104d-11e8-9aa8-7f1332d3cdb7.gif"
-         alt="FindAndDefeatZerglings"
-         width="320" border="10" style="color:white" />
-  </a>
-  <a href="https://youtu.be/-wDhAHkj90A" target="_blank">
-    <img src="https://user-images.githubusercontent.com/22519290/36202298-87b14c60-1183-11e8-9b3f-f9bb5c8b1ab7.gif"
-         alt="DefeatZerglingsAndBanelings"
-         width="320" border="10" style="color:white" />
-  </a>
-</div> -->
-
-
 This repository implements different Deep Reinforcement Learning Agents for the [pysc2](https://github.com/deepmind/pysc2/) learning environment as described in the [DeepMind StarCraft II paper](https://deepmind.com/documents/110/sc2le.pdf).
 
 We provide implementations for:
-- Advantage Actor Critic (A2C) based on A3C [https://arxiv.org/abs/1602.01783](https://arxiv.org/abs/1602.01783)
-  * Fully Connected Policy
-  * Convolutional LSTM Policy               [https://arxiv.org/abs/1506.04214](https://arxiv.org/abs/1506.04214)
-- Proximal Policy Optimization (PPO)        [https://arxiv.org/abs/1707.06347](https://arxiv.org/abs/1707.06347)
-- FeUdal Networks (FuN)                     [https://arxiv.org/abs/1703.01161](https://arxiv.org/abs/1703.01161)
+- **Advantage Actor Critic (A2C)** based on A3C [https://arxiv.org/abs/1602.01783](https://arxiv.org/abs/1602.01783)
+  - Fully Connected Policy
+  - Convolutional LSTM Policy                   [https://arxiv.org/abs/1506.04214](https://arxiv.org/abs/1506.04214)
+- **Proximal Policy Optimization (PPO)**        [https://arxiv.org/abs/1707.06347](https://arxiv.org/abs/1707.06347)
+- **FeUdal Networks (FuN)**                     [https://arxiv.org/abs/1703.01161](https://arxiv.org/abs/1703.01161)
 
 This repository is part of a student research project which was conducted at the [Autonomous Systems Labs](http://www.ias.informatik.tu-darmstadt.de/), [TU Darmstadt](https://www.tu-darmstadt.de/) by [Daniel Palenicek](https://github.com/danielpalen), [Marcel Hussing](https://github.com/marcelhussing), and [Simon Meister](https://github.com/simonmeister).
 
@@ -74,7 +47,7 @@ We implemented these baseline agents to learn the PySC2 minigames. While PPO can
 
 ### Reports
 
-We document our results more in-depth in the following reports:
+We document our implementation and results in more depth in the following reports:
 - Daniel Palenicek, Marcel Hussing, Simon Meister (Apr. 2018): [Deep Reinforcement Learning for StarCraft II](reports/1_deep_reinforcement_learning_for_starcraft_ii.pdf)
 - Daniel Palenicek, Marcel Hussing (Sep. 2018): [Adapting Feudal Networks for StarCraft II](reports/2_adapting_feudal_networks_for_starcraft_ii.pdf)
 

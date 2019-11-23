@@ -1,4 +1,4 @@
-# PySC2 Deep RL Agents
+# PySC2 Deep Reinforcement Learning Agents
 
 <div align="center">
   <a href="https://youtu.be/m2pC9md0ixY" target="_blank">
@@ -64,31 +64,19 @@ This repository is part of a student research project which was conducted at the
 **The repository was originally located at [simonmeister/pysc2-rl-agents](https://github.com/simonmeister/pysc2-rl-agents) but has moved to this new location.**
 
 ## Content
+The following gives a brief explaination about what we have implemented in this repository. For more detailed information check out the reports.
 
 ### FeUdal Networks
+We have adapted and implemented the FeUdal Networks algorithm for hierarical reinforcement learning on StarCraft II. To be compatable with StarCraft II we account for the spatial state and action space, opposed to the original pubication on Atari.
 
-### PPO
-
-### A2C
+### A2C & PPO
+We implemented these baseline agents to learn the PySC2 minigames. While PPO can only train a FullyConvolutional Policy in the current implementation A2C can additionally train a ConvolutionalLSTM policy.
 
 ### Reports
 
 We document our results more in-depth in the following reports:
 - Daniel Palenicek, Marcel Hussing, Simon Meister (Apr. 2018): [Deep Reinforcement Learning for StarCraft II](reports/1_deep_reinforcement_learning_for_starcraft_ii.pdf)
 - Daniel Palenicek, Marcel Hussing (Sep. 2018): [Adapting Feudal Networks for StarCraft II](reports/2_adapting_feudal_networks_for_starcraft_ii.pdf)
-
-
-<!-- ### Progress
-- [x] A2C agent
-- [x] FullyConv architecture
-- [x] support all spatial screen and minimap observations as well as non-spatial player observations
-- [x] support the full action space as described in the DeepMind paper
-(predicting all arguments independently)
-- [x] support training on all mini games
-- [ ] report results for all mini games
-- [x] LSTM architecture
-- [ ] Multi-GPU training -->
-
 
 ## Results
 
@@ -156,7 +144,7 @@ See `run.py` for all arguments.
 Summaries are written to `out/summary/<experiment_name>`
 and model checkpoints are written to `out/models/<experiment_name>`.
 
-### License
+## License
 
 This project is licensed under the MIT License (refer to the LICENSE file for details).
 

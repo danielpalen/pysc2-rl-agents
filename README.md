@@ -53,15 +53,19 @@
 This repository implements different Deep Reinforcement Learning Agents for the [pysc2](https://github.com/deepmind/pysc2/) learning environment as described in the [DeepMind StarCraft II paper](https://deepmind.com/documents/110/sc2le.pdf).
 
 We provide implementations for:
-- Asynchonous Advantage Actor Critic (A2C)
-- Proximal Policy Optimization (PPO)
-- FeUdal Networks (FuN)
+- Advantage Actor Critic (A2C) based on A3C [https://arxiv.org/abs/1602.01783](https://arxiv.org/abs/1602.01783)
+  * Fully Connected Policy
+  * Convolutional LSTM Policy               [https://arxiv.org/abs/1506.04214](https://arxiv.org/abs/1506.04214)
+- Proximal Policy Optimization (PPO)        [https://arxiv.org/abs/1707.06347](https://arxiv.org/abs/1707.06347)
+- FeUdal Networks (FuN)                     [https://arxiv.org/abs/1703.01161](https://arxiv.org/abs/1703.01161)
 
-We use a synchronous variant of A3C (A2C) to effectively train on GPUs and otherwise stay as close as possible to the agent described in the paper.
-
-This repository is part of a research project at the [Autonomous Systems Labs](http://www.ias.informatik.tu darmstadt.de/), [TU Darmstadt](https://www.tu-darmstadt.de/) by [Daniel Palenicek](https://github.com/danielpalen), [Marcel Hussing](https://github.com/marcelhussing), and [Simon Meister](https://github.com/simonmeister).
+This repository is part of a student research project which was conducted at the [Autonomous Systems Labs](http://www.ias.informatik.tu-darmstadt.de/), [TU Darmstadt](https://www.tu-darmstadt.de/) by [Daniel Palenicek](https://github.com/danielpalen), [Marcel Hussing](https://github.com/marcelhussing), and [Simon Meister](https://github.com/simonmeister).
 
 **The repository was originally located at [simonmeister/pysc2-rl-agents](https://github.com/simonmeister/pysc2-rl-agents) but has moved to this new location.**
+
+We document our results more in-depth in the following reports:
+- Daniel Palenicek, Marcel Hussing, Simon Meister (Apr. 2018): [Deep Reinforcement Learning for StarCraft II](reports/1_deep_reinforcement_learning_for_starcraft_ii.pdf)
+- Daniel Palenicek, Marcel Hussing (Sep. 2018): [Adapting Feudal Networks for StarCraft II](reports/2_adapting_feudal_networks_for_starcraft_ii.pdf)
 
 <!-- ### Progress
 - [x] A2C agent
@@ -74,13 +78,10 @@ This repository is part of a research project at the [Autonomous Systems Labs](h
 - [x] LSTM architecture
 - [ ] Multi-GPU training -->
 
-### License
-
-This project is licensed under the MIT License (refer to the LICENSE file for details).
 
 ## Results
 
-### FuDal
+### FeUdal Networks
 
 ### PPO
 
@@ -141,6 +142,9 @@ See `run.py` for all arguments.
 Summaries are written to `out/summary/<experiment_name>`
 and model checkpoints are written to `out/models/<experiment_name>`.
 
+### License
+
+This project is licensed under the MIT License (refer to the LICENSE file for details).
 
 ## Acknowledgments
-The code in `rl/environment.py` is based on [OpenAI baselines](https://github.com/openai/baselines/tree/master/baselines/a2c), with adaptions from [sc2aibot](https://github.com/pekaalto/sc2aibot). Some of the code in `rl/agents/a2c/runner.py` is loosely based on [sc2aibot](https://github.com/pekaalto/sc2aibot).
+The code in `rl/environment.py` is based on [OpenAI baselines](https://github.com/openai/baselines/tree/master/baselines/a2c), with adaptions from [sc2aibot](https://github.com/pekaalto/sc2aibot). Some of the code in `rl/agents/a2c/runner.py` is loosely based on [sc2aibot](https://github.com/pekaalto/sc2aibot). The Convolutional LSTM Cell implementation is taken from [carlthome]( https://github.com/carlthome/tensorflow-convlstm-cell/blob/master/cell.py).

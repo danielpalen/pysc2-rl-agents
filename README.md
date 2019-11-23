@@ -51,6 +51,44 @@ We document our implementation and results in more depth in the following report
 - Daniel Palenicek, Marcel Hussing, Simon Meister (Apr. 2018): [Deep Reinforcement Learning for StarCraft II](reports/1_deep_reinforcement_learning_for_starcraft_ii.pdf)
 - Daniel Palenicek, Marcel Hussing (Sep. 2018): [Adapting Feudal Networks for StarCraft II](reports/2_adapting_feudal_networks_for_starcraft_ii.pdf)
 
+## Usage
+
+### Software Requirements
+- Python 3
+- pysc2 (tested with v1.2)
+- TensorFlow (tested with 1.4.0)
+- StarCraft II and mini games (see below or
+  [pysc2](https://github.com/deepmind/pysc2/))
+
+### Quick Install Guide
+- `pip install numpy tensorflow-gpu pysc2==1.2`
+- Install StarCraft II. On Linux, use
+[3.16.1](http://blzdistsc2-a.akamaihd.net/Linux/SC2.3.16.1.zip). Unzip the package into the home directory.
+- Download the
+[mini games](https://github.com/deepmind/pysc2/releases/download/v1.2/mini_games.zip)
+and extract them to your `~/StarcraftII/Maps/` directory.
+
+### Train & run
+Quickstart:
+`python run.py <experiment-id>` will run the training with default settings for Fully Connected A2C.
+To evalutate after training run `python run.py <experiment-id> --eval`.
+
+The implementation enables highly configurable experiments via the command line args. To see the full documentation run `python run.py --help`. 
+
+The most important flags include:
+
+- `--agent`: Choose between A2C, PPO and FeUdal 
+- `--policy`: Choose the topology of the policy network (not all agents are compatible with every network)
+- `--map`: Choose the mini-map which you want to train on
+- `--vis`: Visualize the agent 
+
+Summaries are written to `out/summary/<experiment_name>`
+and model checkpoints are written to `out/models/<experiment_name>`.
+
+### Hardware Requirements
+For fast training, a GPU is recommended.
+We ran our experiments on Titan X Pascal and GTX 1080Ti GPUs
+
 ## Results
 
 On the mini games, we report the following results as best mean over score:
@@ -86,40 +124,10 @@ Note that the DeepMind mean scores are their best individual scores after 100 ru
 game, where the initial learning rate was randomly sampled for each run.
 We use a constant initial learning rate for a much smaller number of runs due to limited hardware.
 
-## Usage
-
-### Hardware Requirements
-- for fast training, a GPU is recommended.
-We ran each experiment on a single Titan X Pascal (12GB).
-
-### Software Requirements
-- Python 3
-- pysc2 (tested with v1.2)
-- TensorFlow (tested with 1.4.0)
-- StarCraft II and mini games (see below or
-  [pysc2](https://github.com/deepmind/pysc2/))
-
-### Quick Install Guide
-- `pip install numpy tensorflow-gpu pysc2==1.2`
-- Install StarCraft II. On Linux, use
-[3.16.1](http://blzdistsc2-a.akamaihd.net/Linux/SC2.3.16.1.zip).
-- Download the
-[mini games](https://github.com/deepmind/pysc2/releases/download/v1.2/mini_games.zip)
-and extract them to your `StarcraftII/Maps/` directory.
-
-### Train & run
-- run and train: `python run.py my_experiment --map MoveToBeacon`.
-- run and evalutate without training: `python run.py my_experiment --map MoveToBeacon --eval`.
-
-You can visualize the agents during training or evaluation with the `--vis` flag.
-See `run.py` for all arguments.
-
-Summaries are written to `out/summary/<experiment_name>`
-and model checkpoints are written to `out/models/<experiment_name>`.
-
 ## License
 
 This project is licensed under the MIT License (refer to the LICENSE file for details).
 
 ## Acknowledgments
-The code in `rl/environment.py` is based on [OpenAI baselines](https://github.com/openai/baselines/tree/master/baselines/a2c), with adaptions from [sc2aibot](https://github.com/pekaalto/sc2aibot). Some of the code in `rl/agents/a2c/runner.py` is loosely based on [sc2aibot](https://github.com/pekaalto/sc2aibot). The Convolutional LSTM Cell implementation is taken from [carlthome]( https://github.com/carlthome/tensorflow-convlstm-cell/blob/master/cell.py).
+The code in `rl/environment.py` is based on [OpenAI baselines](https://github.com/openai/baselines/tree/master/baselines/a2c), with adaptions from [sc2aibot](https://github.com/pekaalto/sc2aibot). Some of the code in `rl/agents/a2c/runner.py` is loosely based on [sc2aibot](https://github.com/pekaalto/sc2aibot). The Convolutional LSTM Cell implementation is taken from [carlthome]( https://github.com/carlthome/tensorflow-convlstm-cell/blob/master/cell.py). The FeUdal Networks implementation is inspired by 
+[dmakian](https://github.com/dmakian/feudal_networks).
